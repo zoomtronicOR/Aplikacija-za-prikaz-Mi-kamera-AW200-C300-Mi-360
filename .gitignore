@@ -1,6 +1,7 @@
 # private: project documents
 Xiaomi_Camera_Hub_*.md
 CLAUDE.md
+BELESKE.md
 .claude/
 
 # private: server secrets and runtime data
