@@ -1,0 +1,42 @@
+# Copy to config/go2rtc.yaml, set the password, chmod 600.
+# After the Xiaomi login in the go2rtc web UI, go2rtc adds a `xiaomi:` section with the
+# account session itself. Never commit the real file.
+
+api:
+  listen: "127.0.0.1:1984"   # only the app talks to go2rtc; use an SSH tunnel for the web UI
+  username: admin
+  password: "change-me"
+
+rtsp:
+  listen: "127.0.0.1:8554"
+
+webrtc:
+  listen: ":8555"            # WebRTC media to browsers on the LAN
+
+log:
+  level: info
+  xiaomi: info               # never "debug": it logs session keys
+
+ffmpeg:
+  # multipart MJPEG over HTTP (ESP32-CAM): ffmpeg's autodetect fails on it
+  mjpeg_http: "-f mjpeg -use_wallclock_as_timestamps 1 -i {input}"
+
+streams:
+  # Stream name = camera slug in the app. "<name>_sd" is the SD profile of the same camera.
+  # Xiaomi Outdoor Camera AW200
+  garden:
+    - xiaomi://1234567890:de@192.168.1.20?did=1000000001&model=isa.camera.hlc9a&subtype=3
+  garden_sd:
+    - xiaomi://1234567890:de@192.168.1.20?did=1000000001&model=isa.camera.hlc9a&subtype=1
+  # Xiaomi Smart Camera C300
+  entrance:
+    - xiaomi://1234567890:de@192.168.1.21?did=1000000002&model=xiaomi.camera.c01a01&subtype=3
+  entrance_sd:
+    - xiaomi://1234567890:de@192.168.1.21?did=1000000002&model=xiaomi.camera.c01a01&subtype=1
+  # Mi 360° 1080p: its PCMA/16k audio needs an Opus track for WebRTC
+  living_room:
+    - xiaomi://1234567890:de@192.168.1.22?did=1000000003&model=chuangmi.camera.ipc019
+    - ffmpeg:living_room#audio=opus
+  living_room_sd:
+    - xiaomi://1234567890:de@192.168.1.22?did=1000000003&model=chuangmi.camera.ipc019&subtype=1
+    - ffmpeg:living_room_sd#audio=opus
