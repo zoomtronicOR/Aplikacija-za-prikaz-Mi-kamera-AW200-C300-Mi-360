@@ -1,0 +1,15 @@
+# private: project documents
+Xiaomi_Camera_Hub_*.md
+CLAUDE.md
+.claude/
+
+# private: server secrets and runtime data
+.env
+config/
+data/
+tokens_raw.txt
+*.bak*
+
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Kamere – podešavanja{% endblock %}
+{% block body %}
+<nav class="navbar border-bottom px-3">
+  <a href="/" class="navbar-brand mb-0 h1 fs-5">← Kamere</a>
+  <form method="post" action="/logout" class="d-flex align-items-center gap-2">
+    <span class="text-body-secondary small">{{ user.username }}</span>
+    <button class="btn btn-sm btn-outline-secondary">Odjava</button>
+  </form>
+</nav>
+
+<main class="container-lg p-3">
+  <h1 class="h5">Kamere</h1>
+  <div class="table-responsive mb-4">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Redosled</th><th>Naziv</th><th>Lokacija</th><th>Vrsta / izvor</th><th>Stanje</th><th>Prikaz</th><th></th></tr></thead>
+      <tbody id="cams"></tbody>
+    </table>
+  </div>
+
+  <h2 class="h6">Dodaj kameru</h2>
+  <form id="add" class="card card-body gap-2" style="max-width: 720px" autocomplete="off">
+    <div class="row g-2">
+      <div class="col-sm-6"><label class="form-label small mb-0" for="f-name">Naziv</label>
+        <input class="form-control form-control-sm" id="f-name" name="name" required maxlength="128"></div>
+      <div class="col-sm-6"><label class="form-label small mb-0" for="f-location">Lokacija (nije obavezno)</label>
+        <input class="form-control form-control-sm" id="f-location" name="location" maxlength="128"></div>
+    </div>
+    <div><label class="form-label small mb-0" for="f-source">Adresa streama</label>
+      <input class="form-control form-control-sm font-monospace" id="f-source" name="source" required
+             placeholder="rtsp://korisnik:lozinka@192.168.1.50:554/stream1"></div>
+    <div><label class="form-label small mb-0" for="f-sd">Adresa SD streama (nije obavezno)</label>
+      <input class="form-control form-control-sm font-monospace" id="f-sd" name="sd_source"
+             placeholder="rtsp://korisnik:lozinka@192.168.1.50:554/stream2"></div>
+    <div><label class="form-label small mb-0" for="f-mode">Format</label>
+      <select class="form-select form-select-sm" id="f-mode" name="mode">
+        <option value="direct">Direktno (RTSP/ONVIF kamere, bez opterećenja servera)</option>
+        <option value="h264">Pretvori u H.264 (kad se slika ne prikazuje u browseru)</option>
+        <option value="mjpeg">MJPEG preko HTTP-a (ESP32-CAM)</option>
+      </select>
+      <div class="form-text small">Pretvaranje troši procesor servera, ali samo dok neko gleda kameru.</div>
+    </div>
+    <details class="small text-body-secondary">
+      <summary>Primeri adresa</summary>
+      <ul class="mb-0 mt-1">
+        <li>ESP32-CAM (CameraWebServer): <code>http://IP:81/stream</code>, format „MJPEG preko HTTP-a”</li>
+        <li>RTSP kamera: <code>rtsp://korisnik:lozinka@IP:554/putanja</code> (putanja zavisi od proizvođača)</li>
+        <li>ONVIF kamera (automatski pronalazi stream): <code>onvif://korisnik:lozinka@IP</code></li>
+        <li>MJPEG preko HTTP-a: <code>http://IP/video.mjpg</code></li>
+      </ul>
+      Lozinka iz adrese čuva se samo u go2rtc konfiguraciji; u aplikaciji se prikazuje kao <code>***</code>.
+    </details>
+    <div class="d-flex gap-2 align-items-center">
+      <button type="button" id="btn-probe" class="btn btn-sm btn-outline-secondary">Proveri vezu</button>
+      <button class="btn btn-sm btn-primary">Dodaj kameru</button>
+      <span id="add-msg" class="small"></span>
+    </div>
+  </form>
+</main>
+<script type="module" src="/static/admin.js"></script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Prijava – Kamere{% endblock %}
+{% block body %}
+<main class="d-flex align-items-center justify-content-center min-vh-100 px-3">
+  <form method="post" action="/login" class="card p-4 w-100" style="max-width: 360px">
+    <h1 class="h5 mb-3">Kamere – prijava</h1>
+    {% if error %}<div class="alert alert-danger py-2">{{ error }}</div>{% endif %}
+    <div class="mb-3">
+      <label class="form-label" for="username">Korisničko ime</label>
+      <input class="form-control" id="username" name="username" autocomplete="username" required autofocus>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="password">Lozinka</label>
+      <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn btn-primary w-100">Prijavi se</button>
+  </form>
+</main>
+{% endblock %}

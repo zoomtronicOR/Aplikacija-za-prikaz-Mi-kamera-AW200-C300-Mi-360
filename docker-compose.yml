@@ -1,0 +1,48 @@
+services:
+  go2rtc:
+    # v1.9.15 + go2rtc PR #2531 (Xiaomi pan/tilt motor, commit e23a21b), built on the LXC from
+    # /opt/build/go2rtc-ptz. Roll back to alexxit/go2rtc:1.9.15 if needed (only PTZ is lost).
+    image: go2rtc-local:1.9.15-ptz-e23a21b
+    pull_policy: never
+    container_name: xiaomi-go2rtc
+    restart: unless-stopped
+    # host network: Xiaomi CS2 (UDP) to the cameras and WebRTC media on 8555
+    network_mode: host
+    volumes:
+      - ./config:/config
+
+  postgres:
+    image: postgres:16.10
+    container_name: xiaomi-cam-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: xiaomi_cam
+      POSTGRES_USER: xiaomi_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xiaomi_app -d xiaomi_cam"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: xiaomi-cam-app:local
+    container_name: xiaomi-cam-app
+    restart: unless-stopped
+    # host network: miIO (UDP 54321) to the cameras, go2rtc and postgres on localhost
+    network_mode: host
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      go2rtc:
+        condition: service_started
+    volumes:
+      - ./config/miio_tokens.json:/config/miio_tokens.json:ro
+
+volumes:
+  postgres_data:

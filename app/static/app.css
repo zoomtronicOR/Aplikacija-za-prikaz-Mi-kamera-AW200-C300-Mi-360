@@ -1,0 +1,19 @@
+body { background: #111; }
+.cam-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); }
+.cam .view { position: relative; aspect-ratio: 16 / 9; background: #000; }
+.cam .view video-stream { position: absolute; inset: 0; }
+.cam .view video { width: 100%; height: 100%; object-fit: contain; }
+.cam .view:fullscreen { aspect-ratio: auto; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #777; flex: none; }
+.dot.ok { background: #3c3; }
+.dot.wait { background: #e90; }
+.dot.err { background: #e33; }
+.controls .form-check { margin-bottom: .25rem; }
+.ptz { position: absolute; right: 8px; bottom: 8px; display: grid; grid-template: repeat(3, 36px) / repeat(3, 36px);
+       gap: 2px; opacity: .55; transition: opacity .2s; z-index: 2; }
+.ptz:hover, .ptz:focus-within { opacity: 1; }
+.ptz button { border: 0; border-radius: 6px; background: rgba(0, 0, 0, .6); color: #fff; font-size: 16px;
+              touch-action: none; user-select: none; -webkit-user-select: none; }
+.ptz button:active, .ptz button.on { background: rgba(13, 110, 253, .85); }
+.ptz .up { grid-area: 1 / 2; } .ptz .left { grid-area: 2 / 1; } .ptz .right { grid-area: 2 / 3; } .ptz .down { grid-area: 3 / 2; }
+.ptz-msg { position: absolute; left: 8px; bottom: 8px; z-index: 2; }
