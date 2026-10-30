@@ -195,3 +195,7 @@ Migracije baze (Alembic) pokreću se same pri startu aplikacije.
 - Istovremeno gledanje iste Xiaomi kamere kroz Mi Home aplikaciju može izazvati prekide.
 - ESP32 `CameraWebServer` primenjuje novu rezoluciju tek na novoj stream vezi. Aplikacija zato ponovo poveže plejer, a drugi gledaoci vide promenu kad osveže stranicu.
 - Desilo se da AW200 prestane da odgovara na video vezu. Restart kamere (isključivanje iz struje) je to rešio.
+
+## Licenca
+
+[MIT](LICENSE) © 2026 Zoran Nikolić
