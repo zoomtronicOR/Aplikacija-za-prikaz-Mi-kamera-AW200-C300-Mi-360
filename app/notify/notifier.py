@@ -20,6 +20,7 @@ from app.core.config import get_settings
 from app.core.crypto import decrypt
 from app.core.db import SessionLocal
 from app.models import Camera, Event, NotifyChannel, NotifySettings, RecordingSettings
+from app.notify import ha
 from app.notify.channels import SENDERS, ChannelError, Message
 from app.notify.mqtt_bridge import MqttBridge
 from app.recorder.schedule import in_window
@@ -34,6 +35,15 @@ CHANNEL_KINDS = ("telegram", "mqtt", "ntfy", "email")
 
 mqtt = MqttBridge()
 _last_motion_push: dict[int, float] = {}
+_ha_task: asyncio.Task | None = None
+
+
+async def _ha_background(cams: list[Camera]) -> None:
+    try:
+        await ha.poll_controls(mqtt, cams)
+        await ha.periodic_images(mqtt, cams)
+    except Exception:
+        log.exception("home assistant state update failed")
 
 
 def channel_config(ch: NotifyChannel | None) -> tuple[bool, dict, str | None]:
@@ -100,8 +110,10 @@ async def process_once(tz: ZoneInfo) -> None:
 
         enabled, cfg, secret = channel_config(channels.get("mqtt"))
         mqtt.configure(enabled, cfg, secret)
-        mqtt.set_cameras([{"slug": c.slug, "name": c.name, "model": c.model} for c in cams.values() if c.enabled])
+        active_cams = [c for c in cams.values() if c.enabled]
+        mqtt.set_cameras(ha.entities(active_cams))
         rec = {r.camera_id: r for r in db.execute(select(RecordingSettings)).scalars()}
+        ha.publish_recording(mqtt, active_cams, rec)
         for c in cams.values():
             if not c.enabled:
                 continue
@@ -121,9 +133,16 @@ async def process_once(tz: ZoneInfo) -> None:
             cam = cams.get(ev.camera_id)
             if cam and ev.kind in ("motion_start", "motion_end"):
                 mqtt.event(cam.slug, "motion", ev.kind == "motion_start")
+                if ev.kind == "motion_start" and time.time() - ev.ts.timestamp() < MAX_AGE_S:
+                    asyncio.create_task(ha.publish_image(mqtt, cam, hd=True))
             elif cam:
                 mqtt.event(cam.slug, ev.kind, None)
         db.commit()
+
+        # camera I/O in the background, so a slow camera never delays a notification
+        global _ha_task
+        if _ha_task is None or _ha_task.done():
+            _ha_task = asyncio.create_task(_ha_background(active_cams))
 
         now = time.time()
         for ev in evs:
@@ -158,6 +177,8 @@ def prune_events(days: int = EVENT_KEEP_DAYS) -> None:
 
 async def notifier_loop() -> None:
     tz = ZoneInfo(get_settings().timezone)
+    mqtt.loop = asyncio.get_running_loop()
+    mqtt.on_command = lambda slug, key, payload: ha.handle_command(mqtt, slug, key, payload)
     pruned = 0.0
     while True:
         try:

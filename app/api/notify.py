@@ -22,7 +22,8 @@ CONFIG_FIELDS = {
     "telegram": {"chat_id"},
     "ntfy": {"server", "topic"},
     "email": {"host", "port", "security", "username", "sender", "recipients"},
-    "mqtt": {"host", "port", "username", "prefix", "discovery", "discovery_prefix"},
+    "mqtt": {"host", "port", "username", "prefix", "discovery", "discovery_prefix",
+             "ha_image", "ha_controls", "ha_recording", "ha_ptz"},
 }
 SETTING_FIELDS = ("on_motion", "on_camera_offline", "on_camera_online", "on_storage", "with_snapshot",
                   "cooldown_enabled", "cooldown_minutes", "quiet_enabled", "quiet_start", "quiet_end")

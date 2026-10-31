@@ -35,11 +35,16 @@ const CHANNELS = {
   mqtt: {
     title: 'Home Assistant (MQTT)',
     help: 'Broker je obično Mosquitto dodatak u Home Assistant-u. Uz uključeno otkrivanje, svaka kamera se u HA pojavi ' +
-      'kao uređaj sa senzorima „Pokret” i „Dostupnost”. Teme: <prefiks>/<kamera>/status, /motion, /event.',
+      'kao uređaj sa senzorima „Pokret” i „Dostupnost”, i sa grupama ispod koje uključiš. Komande iz HA ' +
+      'beleže se u audit log kao korisnik „mqtt”. Teme: <prefiks>/<kamera>/status, /motion, /event, /image, /state/…, /set/…',
     fields: [['host', 'Broker (IP)', 'text', '192.168.1.5'], ['port', 'Port', 'number', '1883'],
       ['username', 'Korisnik', 'text', ''], ['prefix', 'Prefiks tema', 'text', 'xiaomi_cam'],
       ['discovery', 'Automatsko otkrivanje u Home Assistant-u', 'switch', true],
-      ['discovery_prefix', 'Prefiks otkrivanja', 'text', 'homeassistant']],
+      ['discovery_prefix', 'Prefiks otkrivanja', 'text', 'homeassistant'],
+      ['ha_image', 'Slika kamere (pri pokretu i na 10 min)', 'switch', true],
+      ['ha_controls', 'Kontrole kamere (noćni režim, lampica…)', 'switch', true],
+      ['ha_recording', 'Snimanje (REC, način snimanja, „snima se”, poslednji pokret)', 'switch', true],
+      ['ha_ptz', 'Okretanje (dugmad levo/desno/gore/dole)', 'switch', true]],
     secret: ['Lozinka', ''],
   },
 };

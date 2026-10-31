@@ -208,11 +208,27 @@ Podešavaju se kao administrator na stranici **Obaveštenja**. Svaki kanal ima p
 MQTT teme (prefiks se podešava, podrazumevano `xiaomi_cam`):
 
 ```text
-xiaomi_cam/system/status        online / offline (i „last will”)
-xiaomi_cam/<kamera>/status      online / offline
-xiaomi_cam/<kamera>/motion      ON / OFF
-xiaomi_cam/<kamera>/event       {"camera": "...", "event": "motion", "active": true, "timestamp": "..."}
+xiaomi_cam/system/status          online / offline (i „last will”)
+xiaomi_cam/<kamera>/status        online / offline
+xiaomi_cam/<kamera>/motion        ON / OFF
+xiaomi_cam/<kamera>/event         {"camera": "...", "event": "motion", "active": true, "timestamp": "..."}
+xiaomi_cam/<kamera>/image         JPEG (pri pokretu i na 10 minuta)
+xiaomi_cam/<kamera>/state/<ključ> stanje kontrola i snimanja
+xiaomi_cam/<kamera>/set/<ključ>   komande iz HA
+xiaomi_cam/<kamera>/ptz           left / right / up / down
 ```
+
+**Entiteti u Home Assistant-u**, po kameri. Svaka grupa osim prve ima svoj prekidač u MQTT podešavanjima:
+
+| Grupa | Entiteti |
+|---|---|
+| uvek | Pokret, Dostupnost |
+| Slika | `camera` sa poslednjom slikom |
+| Kontrole | prekidači i izbori koje kamera podržava (uključena, noćni režim, lampica, okretanje slike, žig, WDR… kod ESP32 rezolucija, kvalitet…) |
+| Snimanje | Ručno snimanje (REC), Način snimanja, Snima se, Poslednji pokret |
+| Okretanje | dugmad levo/desno/gore/dole (kamere sa motorom). Ako kameru niko ne gleda, aplikacija na kratko otvori stream da bi motor radio. |
+
+Komande iz HA se beleže u audit log kao korisnik `mqtt`. Stanje kontrola se čita iz kamera svakog minuta, pa HA vidi i promene napravljene u aplikaciji ili Mi Home-u.
 
 **Pravila** (svako ima svoj prekidač):
 - vrste događaja: pokret, kamera nedostupna, kamera ponovo radi, problem sa snimanjem;
