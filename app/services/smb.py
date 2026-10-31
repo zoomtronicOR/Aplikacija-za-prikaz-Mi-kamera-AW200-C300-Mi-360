@@ -89,6 +89,16 @@ def check(share: Share) -> None:
         raise StorageError(_explain(e)) from e
 
 
+def capacity(share: Share) -> tuple[int, int]:
+    """(total, free) bytes of the disk behind the share, as the share's user sees it."""
+    share._session()
+    try:
+        v = smbclient.stat_volume(share.unc())
+    except (SMBException, OSError) as e:
+        raise StorageError(_explain(e)) from e
+    return v.total_size, v.caller_available_size
+
+
 def upload(share: Share, local_path: str, rel: str) -> None:
     share._session()
     try:

@@ -81,6 +81,10 @@ def _message(ev: Event, cam: Camera | None, tz: ZoneInfo) -> Message:
         return Message(f"Kamera nedostupna: {name}", f"{name}{where} ne odgovara od {at}.", tags="warning")
     if ev.kind == "camera_online":
         return Message(f"Kamera ponovo radi: {name}", f"{name}{where} je ponovo dostupna u {at}.", tags="white_check_mark")
+    if ev.kind == "disk_warning":
+        return Message("Disk se puni", f"{ev.detail} ({at})", tags="warning", priority="high")
+    if ev.kind == "disk_ok":
+        return Message("Disk ponovo u redu", f"{ev.detail} ({at})", tags="white_check_mark")
     if ev.kind == "storage_error":
         return Message("Problem sa snimanjem", f"Snimci ne mogu da se sačuvaju ({at}): {ev.detail or 'nepoznata greška'}",
                        tags="warning", priority="high")
@@ -99,7 +103,8 @@ def _should_push(ev: Event, cam: Camera | None, st: NotifySettings, now: float, 
             return False
         return True
     return {"camera_offline": st.on_camera_offline, "camera_online": st.on_camera_online,
-            "storage_error": st.on_storage, "storage_ok": st.on_storage}.get(ev.kind, False)
+            "storage_error": st.on_storage, "storage_ok": st.on_storage,
+            "disk_warning": st.on_disk, "disk_ok": st.on_disk}.get(ev.kind, False)
 
 
 async def send_push(kind: str, cfg: dict, secret: str | None, msg: Message) -> None:

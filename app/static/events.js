@@ -27,6 +27,8 @@ function title(ev) {
     case 'camera_online': return 'Kamera ponovo radi';
     case 'storage_error': return `Problem sa snimanjem${ev.detail ? ': ' + ev.detail : ''}`;
     case 'storage_ok': return 'Snimanje ponovo radi';
+    case 'disk_warning': return `Disk se puni: ${ev.detail || ''}`;
+    case 'disk_ok': return `Disk ponovo u redu: ${ev.detail || ''}`;
     default: return ev.kind;
   }
 }

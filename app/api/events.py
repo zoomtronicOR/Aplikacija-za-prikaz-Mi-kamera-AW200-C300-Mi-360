@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/events")
 KIND_GROUPS = {
     "motion": ("motion_start",),
     "camera": ("camera_offline", "camera_online"),
-    "storage": ("storage_error", "storage_ok"),
+    "storage": ("storage_error", "storage_ok", "disk_warning", "disk_ok"),
 }
 ARCHIVE_KINDS = tuple(k for ks in KIND_GROUPS.values() for k in ks)  # motion_end is folded into motion_start
 RECORDING_SLACK_S = 15  # the pre-roll starts a recording up to ~10 s before the event

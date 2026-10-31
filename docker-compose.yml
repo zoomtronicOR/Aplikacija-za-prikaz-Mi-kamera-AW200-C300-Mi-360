@@ -44,6 +44,10 @@ services:
     volumes:
       # writable: adding a Xiaomi camera in the UI stores its token here
       - ./config/miio_tokens.json:/config/miio_tokens.json
+      # CT-wide CPU/RAM from scripts/hoststats.py (runs in the LXC: inside Docker, lxcfs only
+      # describes this container) and a bind mount on the root disk for its free space
+      - ./data/hoststats:/host/stats:ro
+      - ./data/fsprobe:/host/fs:ro
 
   caddy:
     # HTTPS in front of the app (local CA); config/Caddyfile is server-specific, see Caddyfile.example

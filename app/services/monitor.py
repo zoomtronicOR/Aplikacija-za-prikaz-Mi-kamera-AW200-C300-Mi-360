@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.models import Camera
-from app.services import events, go2rtc, miio
+from app.services import events, go2rtc, miio, system
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ async def check_once() -> None:
                     _reported_down.add(cam.slug)
                     events.emit(db, "camera_offline", cam.id)
         db.commit()
+        system.maybe_check_disks(db)
 
 
 async def monitor_loop() -> None:

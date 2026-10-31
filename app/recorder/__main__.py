@@ -195,6 +195,8 @@ def upload_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                         try:
                             smb.check(share)
                             check_error = None
+                            # disk capacity for the system page and the disk alarm
+                            st.share_total_bytes, st.share_free_bytes = smb.capacity(share)
                         except smb.StorageError as e:
                             check_error = str(e)
                             log.warning("storage check: %s", e)

@@ -54,6 +54,7 @@ for path, template, is_admin in (
     ("/admin/recording", "admin_recording.html", True),
     ("/admin/notify", "admin_notify.html", True),
     ("/admin/users", "admin_users.html", True),
+    ("/admin/system", "admin_system.html", True),
 ):
     router.add_api_route(path, _page(template, is_admin), methods=["GET"], response_class=HTMLResponse,
                          include_in_schema=False)

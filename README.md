@@ -23,6 +23,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
 
   Lozinke su zaštićene Argon2id heširanjem. Uzastopni neuspešni pokušaji prijave privremeno se blokiraju. Prijave i izmene beleže se u audit log.
 - **Arhiva događaja:** traka dana po kameri i spisak događaja (pokret sa AI oznakom, nedostupnost, problemi sa snimanjem), sa slikom trenutka i dugmetom koje pušta snimak baš od tog trenutka.
+- **Stranica Sistem:** procesor, RAM, disk servera i disk sa snimcima, stanje svih servisa i kamera, uz **alarm za disk** (upozorenje na 80 % i 90 %, pragovi podesivi, sa prekidačem).
 - **Noćna rezervna kopija** baze i konfiguracije.
 
 ## Podržane kamere
@@ -154,6 +155,16 @@ Dodavanje traje 10–60 sekundi. Okretanje (PTZ) se kasnije može uključiti ili
 4. `docker compose restart go2rtc && docker compose exec app python -m app.cli import-cameras`
 
 </details>
+
+### 5b. Servis za stanje sistema
+
+Stranica **Sistem** prikazuje procesor i RAM celog servera (CT-a). Te vrednosti mora da meri mali servis koji radi van Docker-a, jer u LXC-u kontejner vidi samo sebe:
+
+```bash
+mkdir -p data/fsprobe data/hoststats
+install -m 644 scripts/xiaomi-cam-hub-stats.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now xiaomi-cam-hub-stats.service
+```
 
 ### 6. Noćna rezervna kopija
 

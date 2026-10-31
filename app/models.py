@@ -84,6 +84,8 @@ class RecordingStorage(Base):
     status_error: Mapped[str | None] = mapped_column(Text)
     status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     pending_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    share_total_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    share_free_bytes: Mapped[int | None] = mapped_column(BigInteger)
 
 
 class RecordingSettings(Base):
@@ -182,6 +184,18 @@ class NotifySettings(Base):
     # event archive
     event_thumbs: Mapped[bool] = mapped_column(Boolean, default=True)
     events_keep_days: Mapped[int] = mapped_column(Integer, default=30)
+    # disk alarm (spec 4.3: warn at 80 % and 90 %)
+    on_disk: Mapped[bool] = mapped_column(Boolean, default=True)
+    disk_warn_pct: Mapped[int] = mapped_column(Integer, default=80)
+    disk_crit_pct: Mapped[int] = mapped_column(Integer, default=90)
+
+
+class SystemAlert(Base):
+    __tablename__ = "system_alerts"
+
+    target: Mapped[str] = mapped_column(String(32), primary_key=True)  # "server_disk" | "share"
+    level: Mapped[int] = mapped_column(Integer, default=0)             # 0 ok, 1 warning, 2 critical
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AuditLog(Base):

@@ -1,0 +1,13 @@
+[Unit]
+Description=Xiaomi Camera Hub: CT-wide CPU/RAM stats for the system page
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/xiaomi-cam-hub/scripts/hoststats.py
+Restart=always
+RestartSec=10
+DynamicUser=no
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

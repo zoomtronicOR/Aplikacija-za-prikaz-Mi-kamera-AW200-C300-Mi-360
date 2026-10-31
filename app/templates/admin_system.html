@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Sistem{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+
+<main class="container-lg p-3">
+  <div class="d-flex align-items-baseline gap-2 mb-2">
+    <h1 class="h5 mb-0">Sistem</h1>
+    <span id="updated" class="small text-body-secondary"></span>
+  </div>
+
+  <div class="row g-3 mb-3" id="metrics"></div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <section class="card card-body">
+        <h2 class="h6">Servisi</h2>
+        <table class="table table-sm align-middle mb-0"><tbody id="services"></tbody></table>
+      </section>
+    </div>
+    <div class="col-lg-5 d-grid gap-3 align-content-start">
+      <section class="card card-body">
+        <h2 class="h6">Kamere</h2>
+        <div id="cameras" class="small"></div>
+      </section>
+      <section class="card card-body">
+        <h2 class="h6">Alarm za disk</h2>
+        <form id="alarm" class="d-grid gap-2">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="a-on">
+            <label class="form-check-label small" for="a-on">Obaveštenje kada se disk servera ili disk sa snimcima puni</label>
+          </div>
+          <div class="d-flex align-items-center gap-2 small">
+            upozorenje na <input id="a-warn" type="number" min="50" max="98" class="form-control form-control-sm" style="width: 4.5rem"> %,
+            kritično na <input id="a-crit" type="number" min="51" max="99" class="form-control form-control-sm" style="width: 4.5rem"> %
+          </div>
+          <div class="small text-body-secondary">Poruka stiže kanalima sa stranice Obaveštenja, jednom pri prelasku praga, i kad se disk oslobodi.</div>
+          <div><button class="btn btn-sm btn-primary">Sačuvaj</button> <span id="a-msg" class="small"></span></div>
+        </form>
+      </section>
+    </div>
+  </div>
+</main>
+<script type="module" src="/static/admin_system.js"></script>
+{% endblock %}
