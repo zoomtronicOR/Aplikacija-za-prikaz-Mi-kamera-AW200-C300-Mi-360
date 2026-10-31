@@ -3,6 +3,7 @@ import { api, el } from './common.js';
 const NAMES = { database: 'Baza', go2rtc: 'go2rtc (video)', recorder: 'Snimač', storage: 'Skladište snimaka',
   https: 'HTTPS (Caddy)', mqtt: 'Home Assistant (MQTT)' };
 const gb = b => `${(b / 1024 ** 3).toFixed(1)} GB`;
+const fmt = s => new Date(s).toLocaleString('sr-Latn-RS', { dateStyle: 'short', timeStyle: 'short' });
 const dur = s => {
   if (s == null) return '—';
   const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
@@ -35,9 +36,16 @@ function render(d) {
   const up = d.cameras.filter(c => c.online).length;
   document.getElementById('cameras').replaceChildren(
     el('div', { class: 'mb-1' }, `${up} od ${d.cameras.length} dostupno · server (CT) radi ${dur(m.uptime_s)}`),
-    ...d.cameras.map(c => el('div', {}, el('span', { class: `dot ${c.online ? 'ok' : c.online === false ? 'err' : 'wait'} d-inline-block me-2` }), c.name,
-      c.online === false && c.last_seen_at ? el('span', { class: 'text-body-secondary' },
-        ` · poslednji put viđena ${new Date(c.last_seen_at).toLocaleString('sr-Latn-RS', { dateStyle: 'short', timeStyle: 'short' })}`) : '')));
+    ...d.cameras.map(c => {
+      const w = c.watchdog || {};
+      const noVideo = c.online && w.video_ok === false;
+      const notes = [];
+      if (c.online === false && c.last_seen_at) notes.push(`poslednji put viđena ${fmt(c.last_seen_at)}`);
+      if (noVideo) notes.push('na mreži, ali ne daje sliku');
+      if (w.repaired_at) notes.push(`samopopravka ${fmt(w.repaired_at)}${w.last_action ? ` (${w.last_action})` : ''}`);
+      return el('div', {}, el('span', { class: `dot ${noVideo ? 'wait' : c.online ? 'ok' : c.online === false ? 'err' : 'wait'} d-inline-block me-2` }),
+        c.name, notes.length ? el('span', { class: noVideo ? 'text-warning' : 'text-body-secondary' }, ` · ${notes.join(' · ')}`) : '');
+    }));
   document.getElementById('updated').textContent = `osveženo ${new Date().toLocaleTimeString('sr-Latn-RS')}`;
 }
 
@@ -53,7 +61,19 @@ form.addEventListener('submit', async ev => {
   catch (e) { msg.className = 'small text-danger'; msg.textContent = e.message; }
 });
 
+const wdMsg = document.getElementById('w-msg');
+document.getElementById('wd').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const body = { enabled: document.getElementById('w-on').checked, repair: document.getElementById('w-repair').checked,
+    notify: document.getElementById('w-notify').checked };
+  try { await api('/api/system/watchdog', { method: 'PUT', body: JSON.stringify(body) }); wdMsg.className = 'small text-success'; wdMsg.textContent = 'Sačuvano.'; }
+  catch (e) { wdMsg.className = 'small text-danger'; wdMsg.textContent = e.message; }
+});
+
 const first = await api('/api/system');
+document.getElementById('w-on').checked = first.watchdog.enabled;
+document.getElementById('w-repair').checked = first.watchdog.repair;
+document.getElementById('w-notify').checked = first.watchdog.notify;
 document.getElementById('a-on').checked = first.alarm.on_disk;
 document.getElementById('a-warn').value = first.alarm.disk_warn_pct;
 document.getElementById('a-crit').value = first.alarm.disk_crit_pct;

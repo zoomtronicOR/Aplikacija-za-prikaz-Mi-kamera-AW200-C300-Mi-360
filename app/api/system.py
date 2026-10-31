@@ -13,7 +13,7 @@ from app.core.db import get_db
 from app.core.security import audit, client_ip, require_role
 from app.models import Camera, NotifyChannel, RecordingSettings, RecordingStorage, SystemAlert, User
 from app.notify.notifier import mqtt, settings_row
-from app.services import monitor, system
+from app.services import monitor, system, watchdog
 
 router = APIRouter(prefix="/api/system", dependencies=[Depends(require_role("admin"))])
 
@@ -76,13 +76,41 @@ async def status(db: Session = Depends(get_db)):
     cams = db.execute(select(Camera).where(Camera.enabled.is_(True)).order_by(Camera.sort_order, Camera.name)).scalars().all()
     settings = settings_row(db)
     alerts = {a.target: a.level for a in db.execute(select(SystemAlert)).scalars()}
+
+    def wd(slug: str) -> dict:
+        s = watchdog.state.get(slug)
+        if s is None:
+            return {}
+        return {"video_ok": not s.lost, "fails": s.fails, "last_action": s.last_action,
+                "last_ok_at": datetime.fromtimestamp(s.last_ok, timezone.utc) if s.last_ok else None,
+                "repaired_at": datetime.fromtimestamp(s.repaired_at, timezone.utc) if s.repaired_at else None}
+
     return {
-        "metrics": system.snapshot(db),  # a few small /proc reads
+        "metrics": system.snapshot(db),
         "services": services,
-        "cameras": [{"name": c.name, "online": monitor.online.get(c.slug), "last_seen_at": c.last_seen_at} for c in cams],
+        "cameras": [{"name": c.name, "online": monitor.online.get(c.slug), "last_seen_at": c.last_seen_at,
+                     "watchdog": wd(c.slug)} for c in cams],
         "alarm": {"on_disk": settings.on_disk, "disk_warn_pct": settings.disk_warn_pct,
                   "disk_crit_pct": settings.disk_crit_pct, "levels": alerts},
+        "watchdog": {"enabled": settings.watchdog_enabled, "repair": settings.watchdog_repair,
+                     "notify": settings.on_video},
     }
+
+
+class WatchdogIn(BaseModel):
+    enabled: bool = True
+    repair: bool = True
+    notify: bool = True
+
+
+@router.put("/watchdog")
+def put_watchdog(body: WatchdogIn, request: Request, db: Session = Depends(get_db),
+                 user: User = Depends(require_role("admin"))):
+    st = settings_row(db)
+    st.watchdog_enabled, st.watchdog_repair, st.on_video = body.enabled, body.repair, body.notify
+    db.commit()
+    audit(db, "system_watchdog_set", user=user, detail=body.model_dump_json(), ip=client_ip(request))
+    return body
 
 
 class AlarmIn(BaseModel):

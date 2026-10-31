@@ -9,13 +9,15 @@ from fastapi.staticfiles import StaticFiles
 from app.api import cameras, events, notify, pages, recordings, stream, system, users, xiaomi
 from app.notify.notifier import mqtt, notifier_loop
 from app.services.monitor import monitor_loop
+from app.services.watchdog import watchdog_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    tasks = [asyncio.create_task(monitor_loop()), asyncio.create_task(notifier_loop())]
+    tasks = [asyncio.create_task(monitor_loop()), asyncio.create_task(notifier_loop()),
+             asyncio.create_task(watchdog_loop())]
     yield
     for t in tasks:
         t.cancel()

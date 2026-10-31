@@ -188,6 +188,10 @@ class NotifySettings(Base):
     on_disk: Mapped[bool] = mapped_column(Boolean, default=True)
     disk_warn_pct: Mapped[int] = mapped_column(Integer, default=80)
     disk_crit_pct: Mapped[int] = mapped_column(Integer, default=90)
+    # watchdog: detect cameras that stop delivering video, and try to bring them back
+    watchdog_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    watchdog_repair: Mapped[bool] = mapped_column(Boolean, default=True)
+    on_video: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class SystemAlert(Base):

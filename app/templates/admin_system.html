@@ -24,6 +24,18 @@
         <div id="cameras" class="small"></div>
       </section>
       <section class="card card-body">
+        <h2 class="h6">Samopopravka (watchdog)</h2>
+        <form id="wd" class="d-grid gap-1">
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="w-on">
+            <label class="form-check-label small" for="w-on">Prati da li kamere daju sliku (provera svakog minuta)</label></div>
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="w-repair">
+            <label class="form-check-label small" for="w-repair">Automatski popravi: restart kamere (AW200) ili uspavaj/probudi (ostale), najviše jednom na sat</label></div>
+          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="w-notify">
+            <label class="form-check-label small" for="w-notify">Obaveštenje kad kamera ne daje sliku, kad je popravljena i kad slika proradi</label></div>
+          <div><button class="btn btn-sm btn-primary mt-1">Sačuvaj</button> <span id="w-msg" class="small"></span></div>
+        </form>
+      </section>
+      <section class="card card-body">
         <h2 class="h6">Alarm za disk</h2>
         <form id="alarm" class="d-grid gap-2">
           <div class="form-check form-switch">

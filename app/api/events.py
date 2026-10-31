@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/events")
 
 KIND_GROUPS = {
     "motion": ("motion_start",),
-    "camera": ("camera_offline", "camera_online"),
+    "camera": ("camera_offline", "camera_online", "video_lost", "video_ok", "camera_repair"),
     "storage": ("storage_error", "storage_ok", "disk_warning", "disk_ok"),
 }
 ARCHIVE_KINDS = tuple(k for ks in KIND_GROUPS.values() for k in ks)  # motion_end is folded into motion_start

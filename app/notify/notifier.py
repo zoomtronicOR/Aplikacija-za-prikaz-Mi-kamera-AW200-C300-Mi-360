@@ -81,6 +81,13 @@ def _message(ev: Event, cam: Camera | None, tz: ZoneInfo) -> Message:
         return Message(f"Kamera nedostupna: {name}", f"{name}{where} ne odgovara od {at}.", tags="warning")
     if ev.kind == "camera_online":
         return Message(f"Kamera ponovo radi: {name}", f"{name}{where} je ponovo dostupna u {at}.", tags="white_check_mark")
+    if ev.kind == "video_lost":
+        return Message(f"Kamera ne daje sliku: {name}", f"{name}{where} je na mreži, ali ne šalje video ({at}).",
+                       tags="warning", priority="high")
+    if ev.kind == "camera_repair":
+        return Message(f"Samopopravka: {name}", f"{name}{where}: {ev.detail} ({at}).", tags="wrench")
+    if ev.kind == "video_ok":
+        return Message(f"Slika ponovo radi: {name}", f"{name}{where} ponovo šalje video ({at}).", tags="white_check_mark")
     if ev.kind == "disk_warning":
         return Message("Disk se puni", f"{ev.detail} ({at})", tags="warning", priority="high")
     if ev.kind == "disk_ok":
@@ -104,7 +111,8 @@ def _should_push(ev: Event, cam: Camera | None, st: NotifySettings, now: float, 
         return True
     return {"camera_offline": st.on_camera_offline, "camera_online": st.on_camera_online,
             "storage_error": st.on_storage, "storage_ok": st.on_storage,
-            "disk_warning": st.on_disk, "disk_ok": st.on_disk}.get(ev.kind, False)
+            "disk_warning": st.on_disk, "disk_ok": st.on_disk,
+            "video_lost": st.on_video, "video_ok": st.on_video, "camera_repair": st.on_video}.get(ev.kind, False)
 
 
 async def send_push(kind: str, cfg: dict, secret: str | None, msg: Message) -> None:
