@@ -13,6 +13,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
 - **Dodavanje Xiaomi kamera iz aplikacije:** prijava na Xiaomi nalog, spisak kamera i dodavanje jednim klikom, sa automatskim profilima slike, tokenom i kontrolama, i za modele koje aplikacija ranije nije poznavala.
 - **Dodavanje drugih kamera** iz interfejsa: RTSP, ONVIF, RTMP i HTTP/MJPEG, uz proveru veze pre čuvanja. ESP32-CAM se prepoznaje automatski i dobija kontrole.
 - **Snimanje** na Windows deljeni folder ili NAS (SMB). Može ručno (dugme REC), stalno (24/7), po rasporedu ili **na pokret**: otporno na drveće na vetru i noćni šum, sa zonama za ignorisanje i 10 s snimka pre pokreta. Stari snimci se automatski brišu. Snimci se pregledaju, puštaju i preuzimaju u aplikaciji.
+- **Obaveštenja** preko Telegrama, ntfy-a, emaila i Home Assistant-a (MQTT): o pokretu (sa slikom), o nedostupnoj kameri i njenom povratku, o problemu sa snimanjem. Postoje razmak između poruka i tihi sati, a svaka opcija ima svoj prekidač.
 - **Korisnici i uloge:**
   - administrator: sve;
   - korisnik: prikaz i kontrole;
@@ -192,6 +193,35 @@ Svaka dodatna opcija ima svoj prekidač na stranici **Snimanje**, a sve su podra
 | Snimaj zvuk | Važi za sve načine snimanja. |
 
 Promena cele slike odjednom, kao uključenje IR noćnog režima ili svetla, ne računa se kao pokret.
+
+## Obaveštenja
+
+Podešavaju se kao administrator na stranici **Obaveštenja**. Svaki kanal ima prekidač, dugme **Pošalji probu** (za MQTT **Proveri vezu**) i prikaz poslednjeg uspešnog slanja i greške. Lozinke i tokeni se u bazi čuvaju šifrovani.
+
+| Kanal | Šta treba |
+|---|---|
+| Telegram | Bot napravljen kod @BotFather (token) i tvoj chat ID. Botu prvo pošalji `/start`. |
+| ntfy | ntfy aplikacija na telefonu i tema. Na javnom ntfy.sh izaberi dugačko, teško pogodivo ime teme. |
+| Email | SMTP server. Za Gmail: `smtp.gmail.com`, 587, starttls i *lozinka za aplikacije*. |
+| Home Assistant | MQTT broker (npr. Mosquitto dodatak). Uz otkrivanje, svaka kamera se pojavi kao uređaj sa senzorima **Pokret** i **Dostupnost**. |
+
+MQTT teme (prefiks se podešava, podrazumevano `xiaomi_cam`):
+
+```text
+xiaomi_cam/system/status        online / offline (i „last will”)
+xiaomi_cam/<kamera>/status      online / offline
+xiaomi_cam/<kamera>/motion      ON / OFF
+xiaomi_cam/<kamera>/event       {"camera": "...", "event": "motion", "active": true, "timestamp": "..."}
+```
+
+**Pravila** (svako ima svoj prekidač):
+- vrste događaja: pokret, kamera nedostupna, kamera ponovo radi, problem sa snimanjem;
+- slika iz kamere uz poruku o pokretu;
+- obaveštenja o pokretu posebno za svaku kameru;
+- najviše jedna poruka o pokretu iste kamere u zadatom broju minuta;
+- tihi sati (bez poruka o pokretu).
+
+Kamera se proglašava nedostupnom tek posle dve uzastopne neuspele provere. Pokret se detektuje samo za kamere sa načinom snimanja „Na pokret”. Home Assistant dobija sve događaje, nezavisno od tihih sati i razmaka između poruka.
 
 ## Rad i održavanje
 

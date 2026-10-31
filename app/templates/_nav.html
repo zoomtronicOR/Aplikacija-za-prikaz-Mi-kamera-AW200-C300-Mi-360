@@ -7,6 +7,7 @@
     {% if user.role == "admin" %}
     <a href="/admin/cameras" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/cameras' else 'btn-outline-secondary' }}">Kamere</a>
     <a href="/admin/recording" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/recording' else 'btn-outline-secondary' }}">Snimanje</a>
+    <a href="/admin/notify" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/notify' else 'btn-outline-secondary' }}">Obaveštenja</a>
     {% endif %}
   </div>
   <form method="post" action="/logout" class="d-flex align-items-center gap-2">

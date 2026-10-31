@@ -54,6 +54,7 @@ class Camera(Base):
     # controls derived from the MIoT spec for models the app doesn't know (added through the UI)
     controls_json: Mapped[str | None] = mapped_column(Text)
     ptz: Mapped[bool | None] = mapped_column(Boolean)  # None: the model's default
+    notify_motion: Mapped[bool] = mapped_column(Boolean, default=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -127,6 +128,46 @@ class Recording(Base):
     path: Mapped[str] = mapped_column(String(512))  # relative to the storage folder
     reason: Mapped[str] = mapped_column(String(16))  # manual | continuous | schedule | motion
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Event(Base):
+    """Something that happened (motion, camera down/up, storage trouble); the notifier sends it."""
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    camera_id: Mapped[int | None] = mapped_column(ForeignKey("cameras.id", ondelete="SET NULL"), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    detail: Mapped[str | None] = mapped_column(Text)
+    processed: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+
+class NotifyChannel(Base):
+    __tablename__ = "notify_channels"
+
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    config: Mapped[str] = mapped_column(Text, default="{}")
+    secret_enc: Mapped[str | None] = mapped_column(Text)
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class NotifySettings(Base):
+    """Single row (id=1): which events notify, and the rules every optional behaviour has a switch for."""
+    __tablename__ = "notify_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    on_motion: Mapped[bool] = mapped_column(Boolean, default=True)
+    on_camera_offline: Mapped[bool] = mapped_column(Boolean, default=True)
+    on_camera_online: Mapped[bool] = mapped_column(Boolean, default=True)
+    on_storage: Mapped[bool] = mapped_column(Boolean, default=True)
+    with_snapshot: Mapped[bool] = mapped_column(Boolean, default=True)
+    cooldown_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    cooldown_minutes: Mapped[int] = mapped_column(Integer, default=5)
+    quiet_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    quiet_start: Mapped[time | None] = mapped_column(Time)
+    quiet_end: Mapped[time | None] = mapped_column(Time)
 
 
 class AuditLog(Base):

@@ -21,7 +21,7 @@ from app.recorder.motion import MotionDetector, MotionOptions, mask_str
 from app.recorder.schedule import in_window
 from app.recorder.uploader import apply_retention, buffer_bytes, enforce_buffer_cap, upload_pending
 from app.recorder.worker import CameraWorker, recover_leftovers
-from app.services import smb
+from app.services import events, smb
 
 log = logging.getLogger("recorder")
 
@@ -66,6 +66,7 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
     s = get_settings()
     workers: dict[str, CameraWorker] = {}
     detectors: dict[str, MotionDetector] = {}
+    motion_on: dict[str, bool] = {}  # for motion_start / motion_end events
     last_status: dict[str, tuple] = {}
     last_status_at = 0.0
     while not stopping.is_set():
@@ -94,6 +95,10 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                     active.add(cam.slug)
                     if motion:
                         rs.last_motion_at = datetime.fromtimestamp(motion[-1], timezone.utc)
+                    moving = rs.mode == "motion" and w.motion_active(now)
+                    if moving != motion_on.get(cam.slug, False):
+                        events.emit(db, "motion_start" if moving else "motion_end", cam.id)
+                        motion_on[cam.slug] = moving
 
                     det = detectors.get(cam.slug)
                     # "recording" for the UI: a standing reason, or motion within its post-roll
@@ -179,6 +184,11 @@ def upload_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                 dropped = enforce_buffer_cap(clip_dir, int(st.buffer_max_gb * 1024 ** 3))
                 if dropped:
                     error = (error + "; " if error else "") + f"lokalni bafer pun, obrisano {len(dropped)} snimaka"
+                # events only on a real change (an unknown start state isn't a change)
+                if ok is False and st.status_ok is not False:
+                    events.emit(db, "storage_error", detail=error)
+                elif ok is True and st.status_ok is False:
+                    events.emit(db, "storage_ok")
                 st.status_ok, st.status_error = ok, error
                 st.status_at = datetime.now(timezone.utc)
                 st.pending_bytes = buffer_bytes(buffer_dir)

@@ -1,0 +1,161 @@
+"""Turns events into notifications. Runs as a background task in the web app.
+
+Every pass:
+1. Syncs MQTT state: camera list, online/offline.
+2. Takes unprocessed events. MQTT always gets them, as Home Assistant state.
+3. Push channels (Telegram, ntfy, email) get a message only when its rules pass. Each rule has
+   its own switch: the event type, the camera's motion switch, the motion cooldown, quiet hours
+   (motion only). Events older than MAX_AGE_S are not pushed (e.g. after downtime).
+"""
+import asyncio
+import json
+import logging
+import time
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+from sqlalchemy import delete, select
+
+from app.core.config import get_settings
+from app.core.crypto import decrypt
+from app.core.db import SessionLocal
+from app.models import Camera, Event, NotifyChannel, NotifySettings
+from app.notify.channels import SENDERS, ChannelError, Message
+from app.notify.mqtt_bridge import MqttBridge
+from app.recorder.schedule import in_window
+from app.services import go2rtc, monitor
+
+log = logging.getLogger(__name__)
+
+LOOP_S = 2
+MAX_AGE_S = 300
+EVENT_KEEP_DAYS = 30
+CHANNEL_KINDS = ("telegram", "mqtt", "ntfy", "email")
+
+mqtt = MqttBridge()
+_last_motion_push: dict[int, float] = {}
+
+
+def channel_config(ch: NotifyChannel | None) -> tuple[bool, dict, str | None]:
+    if ch is None:
+        return False, {}, None
+    secret = None
+    if ch.secret_enc:
+        try:
+            secret = decrypt(ch.secret_enc)
+        except ValueError:
+            secret = None
+    return ch.enabled, json.loads(ch.config or "{}"), secret
+
+
+def settings_row(db) -> NotifySettings:
+    st = db.get(NotifySettings, 1)
+    if st is None:
+        st = NotifySettings(id=1)
+        db.add(st)
+        db.commit()
+    return st
+
+
+def _message(ev: Event, cam: Camera | None, tz: ZoneInfo) -> Message:
+    name = cam.name if cam else "kamera"
+    where = f" ({cam.location})" if cam and cam.location else ""
+    at = ev.ts.astimezone(tz).strftime("%H:%M:%S")
+    if ev.kind == "motion_start":
+        return Message(f"Pokret: {name}", f"{name}{where} u {at}", tags="walking", priority="high")
+    if ev.kind == "camera_offline":
+        return Message(f"Kamera nedostupna: {name}", f"{name}{where} ne odgovara od {at}.", tags="warning")
+    if ev.kind == "camera_online":
+        return Message(f"Kamera ponovo radi: {name}", f"{name}{where} je ponovo dostupna u {at}.", tags="white_check_mark")
+    if ev.kind == "storage_error":
+        return Message("Problem sa snimanjem", f"Snimci ne mogu da se sačuvaju ({at}): {ev.detail or 'nepoznata greška'}",
+                       tags="warning", priority="high")
+    return Message("Snimanje ponovo radi", f"Skladište za snimke je ponovo dostupno ({at}).", tags="white_check_mark")
+
+
+def _should_push(ev: Event, cam: Camera | None, st: NotifySettings, now: float, tz: ZoneInfo) -> bool:
+    if now - ev.ts.timestamp() > MAX_AGE_S:
+        return False
+    if ev.kind == "motion_start":
+        if not (st.on_motion and cam and cam.notify_motion):
+            return False
+        if st.quiet_enabled and in_window(datetime.fromtimestamp(now, tz), st.quiet_start, st.quiet_end, "0123456"):
+            return False
+        if st.cooldown_enabled and now - _last_motion_push.get(cam.id, 0) < st.cooldown_minutes * 60:
+            return False
+        return True
+    return {"camera_offline": st.on_camera_offline, "camera_online": st.on_camera_online,
+            "storage_error": st.on_storage, "storage_ok": st.on_storage}.get(ev.kind, False)
+
+
+async def send_push(kind: str, cfg: dict, secret: str | None, msg: Message) -> None:
+    await asyncio.to_thread(SENDERS[kind], cfg, secret, msg)
+
+
+async def process_once(tz: ZoneInfo) -> None:
+    with SessionLocal() as db:
+        st = settings_row(db)
+        channels = {c.kind: c for c in db.execute(select(NotifyChannel)).scalars()}
+        cams = {c.id: c for c in db.execute(select(Camera)).scalars()}
+
+        enabled, cfg, secret = channel_config(channels.get("mqtt"))
+        mqtt.configure(enabled, cfg, secret)
+        mqtt.set_cameras([{"slug": c.slug, "name": c.name, "model": c.model} for c in cams.values() if c.enabled])
+        for c in cams.values():
+            if c.enabled and c.slug in monitor.online:
+                mqtt.set_state(c.slug, "status", "online" if monitor.online[c.slug] else "offline")
+
+        evs = db.execute(select(Event).where(Event.processed.is_(False)).order_by(Event.id).limit(50)).scalars().all()
+        for ev in evs:
+            ev.processed = True
+            cam = cams.get(ev.camera_id)
+            if cam and ev.kind in ("motion_start", "motion_end"):
+                mqtt.set_state(cam.slug, "motion", "ON" if ev.kind == "motion_start" else "OFF")
+                mqtt.event(cam.slug, "motion", ev.kind == "motion_start")
+            elif cam:
+                mqtt.event(cam.slug, ev.kind, None)
+        db.commit()
+
+        now = time.time()
+        for ev in evs:
+            cam = cams.get(ev.camera_id)
+            if not _should_push(ev, cam, st, now, tz):
+                continue
+            targets = [(k, *channel_config(channels.get(k))) for k in ("telegram", "ntfy", "email")]
+            targets = [(k, c, s) for k, en, c, s in targets if en]
+            if not targets:
+                continue
+            msg = _message(ev, cam, tz)
+            if ev.kind == "motion_start":
+                _last_motion_push[cam.id] = now
+                if st.with_snapshot:
+                    msg.image = await go2rtc.frame(cam.slug) or None
+            results = await asyncio.gather(*(send_push(k, c, s, msg) for k, c, s in targets), return_exceptions=True)
+            for (k, _, _), res in zip(targets, results):
+                ch = channels[k]
+                if isinstance(res, Exception):
+                    ch.last_error = str(res) if isinstance(res, ChannelError) else f"{res.__class__.__name__}: {res}"
+                    log.warning("notify %s failed: %s", k, ch.last_error)
+                else:
+                    ch.last_ok_at, ch.last_error = datetime.now(timezone.utc), None
+            db.commit()
+
+
+def prune_events(days: int = EVENT_KEEP_DAYS) -> None:
+    with SessionLocal() as db:
+        db.execute(delete(Event).where(Event.ts < datetime.now(timezone.utc) - timedelta(days=days)))
+        db.commit()
+
+
+async def notifier_loop() -> None:
+    tz = ZoneInfo(get_settings().timezone)
+    pruned = 0.0
+    while True:
+        try:
+            await process_once(tz)
+            if time.time() - pruned > 3600:
+                await asyncio.to_thread(prune_events)
+                pruned = time.time()
+        except Exception:
+            log.exception("notifier failed")
+        await asyncio.sleep(LOOP_S)
