@@ -2,8 +2,10 @@
 
 ffmpeg copies go2rtc's RTSP restream into 10 s Matroska segments (video copied, audio re-encoded
 to AAC so any camera's audio fits an MP4). Each finished segment is kept if a recording reason
-(manual, continuous, schedule) was active while it was written, and contiguous kept segments with
-the same reason are joined into clips of up to 5 minutes, ready for upload.
+(manual, continuous, schedule) was active while it was written, or, with motion armed, if motion
+was seen from MOTION_POST_S before it to MOTION_PRE_S after it. That decision waits until
+MOTION_PRE_S after the segment ends, which is what gives the pre-roll. Contiguous kept segments
+with the same reason are joined into clips of up to 5 minutes, ready for upload.
 """
 import json
 import logging
@@ -23,6 +25,8 @@ MAX_GAP_S = 3  # segments further apart than this belong to different clips
 MIN_CLIP_S = 2
 SEG_PATTERN = "%Y%m%dT%H%M%S"
 REASON_PRIORITY = ("manual", "continuous", "schedule")
+MOTION_PRE_S = 10   # kept before the first motion (one segment)
+MOTION_POST_S = 20  # kept after the last motion
 
 
 @dataclass
@@ -51,6 +55,11 @@ class CameraWorker:
     proc: subprocess.Popen | None = None
     intervals: list[Interval] = field(default_factory=list)
     pending: list[Segment] = field(default_factory=list)
+    motion_times: list[float] = field(default_factory=list)
+    armed: bool = False  # motion mode: segment continuously, keep only around motion
+    pre_roll_s: float = MOTION_PRE_S  # 0 with the pre-roll switch off
+    audio: bool = True
+    _proc_audio: bool = True  # audio setting the running ffmpeg was started with
     last_error: str | None = None
     _restart_at: float = 0.0
     _failures: int = 0
@@ -79,10 +88,18 @@ class CameraWorker:
 
     def _reason_for(self, a: float, b: float) -> str | None:
         reasons = {i.reason for i in self.intervals if i.overlaps(a, b)}
-        return next((r for r in REASON_PRIORITY if r in reasons), None)
+        reason = next((r for r in REASON_PRIORITY if r in reasons), None)
+        if reason is None and any(a - MOTION_POST_S <= m <= b + self.pre_roll_s for m in self.motion_times):
+            reason = "motion"
+        return reason
+
+    def motion_active(self, now: float) -> bool:
+        """True while motion recording is keeping segments (from the last motion to the post-roll)."""
+        return bool(self.motion_times) and now - self.motion_times[-1] <= MOTION_POST_S
 
     def _forget_old_intervals(self, before: float) -> None:
         self.intervals = [i for i in self.intervals if i.end is None or i.end > before]
+        self.motion_times = [m for m in self.motion_times if m > before]
 
     # --- ffmpeg segmenter ----------------------------------------------------------------------
     def _start(self, now: float) -> None:
@@ -97,13 +114,15 @@ class CameraWorker:
             # smooths the audio, which arrives in bursts.
             "-use_wallclock_as_timestamps", "1", "-analyzeduration", "5000000", "-probesize", "5000000",
             "-rtsp_transport", "tcp", "-timeout", "10000000", "-i", self.rtsp_url,
-            "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy",
-            "-af", "aresample=async=1000", "-c:a", "aac", "-b:a", "64k",
+            "-map", "0:v:0", "-c:v", "copy",
+            *(["-map", "0:a:0?", "-af", "aresample=async=1000", "-c:a", "aac", "-b:a", "64k"]
+              if self.audio else ["-an"]),
             "-avoid_negative_ts", "make_zero",
             "-f", "segment", "-segment_time", str(SEG_SECONDS), "-segment_format", "matroska",
             "-reset_timestamps", "1", "-strftime", "1",
             str(self.seg_dir / f"{SEG_PATTERN}.mkv"),
         ]
+        self._proc_audio = self.audio
         # TZ=UTC: segment names are UTC timestamps
         self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                                      env={**os.environ, "TZ": "UTC"})
@@ -175,8 +194,10 @@ class CameraWorker:
             if path in queued:
                 continue
             reason = self._reason_for(start, end)
+            if reason is None and self.armed and now < end + self.pre_roll_s:
+                break  # motion in the next few seconds would still keep it (pre-roll); decide later
             if reason is None:
-                path.unlink(missing_ok=True)  # written around a stop, outside any reason
+                path.unlink(missing_ok=True)  # no reason to keep it (or written around a stop)
                 self._flush()
                 continue
             seg = Segment(path, start, end, reason)
@@ -193,20 +214,29 @@ class CameraWorker:
         self._forget_old_intervals(now - 3600)
 
     # --- main entry ----------------------------------------------------------------------------
-    def tick(self, reason: str | None, now: float) -> None:
+    def tick(self, reason: str | None, now: float, armed: bool = False, motion: list[float] = (),
+             pre_roll: bool = True, audio: bool = True) -> None:
         self.set_reason(reason, now)
+        self.armed = armed
+        self.pre_roll_s = MOTION_PRE_S if pre_roll else 0
+        self.audio = audio
+        self.motion_times.extend(motion)
         self._check_crash(now)
-        if reason and not self.running:
+        if self.running and self._proc_audio != audio:
+            self._stop()  # restarted below with the new audio setting
+        wanted = bool(reason) or armed
+        if wanted and not self.running:
             self._start(now)
-        elif not reason and self.running:
+        elif not wanted and self.running:
             self._stop()
-        if reason and self.running:
+        if wanted and self.running:
             self._failures = 0 if now - self._restart_at > 120 else self._failures
         self.process_segments(now)
 
     def shutdown(self) -> None:
         now = time.time()
         self.set_reason(None, now)
+        self.armed = False
         self._stop()
         self.process_segments(now)
 

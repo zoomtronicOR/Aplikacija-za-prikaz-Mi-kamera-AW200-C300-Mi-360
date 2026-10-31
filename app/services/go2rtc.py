@@ -115,6 +115,16 @@ def _jpeg_size(data: bytes) -> str | None:
     return None
 
 
+async def frame(src: str) -> bytes:
+    """One JPEG frame of a stream; empty if the camera didn't deliver one."""
+    async with _client() as c:
+        try:
+            r = await c.get("/api/frame.jpeg", params={"src": src})
+        except httpx.TimeoutException:
+            return b""
+    return r.content if r.status_code == 200 else b""
+
+
 async def probe(src: str) -> str:
     """Grabs one frame from a source (stream name or URL). Returns the resolution, raises SourceError."""
     async with _client() as c:

@@ -125,6 +125,19 @@ class CameraRecIn(BaseModel):
     schedule_end: time | None = None
     schedule_days: str = Field(default="0123456", pattern=r"^[0-6]{0,7}$")
     retention_days: int | None = Field(default=None, ge=1, le=3650)
+    motion_sensitivity: int = Field(default=50, ge=1, le=100)
+    motion_mask: str | None = Field(default=None, pattern=r"^[01]{144}$")  # 9x16 blocks, 1 = ignore
+    # switches for the optional features
+    motion_auto_ignore: bool = True
+    motion_zones_enabled: bool = True
+    motion_noise_adapt: bool = True
+    motion_require_group: bool = True
+    motion_pre_roll: bool = True
+    record_audio: bool = True
+
+
+TOGGLES = ("motion_auto_ignore", "motion_zones_enabled", "motion_noise_adapt", "motion_require_group",
+           "motion_pre_roll", "record_audio")
 
 
 def _settings_for(db: Session, cam: Camera) -> RecordingSettings:
@@ -143,7 +156,12 @@ def rec_json(rs: RecordingSettings | None) -> dict:
     return {
         "mode": rs.mode, "manual": rs.manual_active, "manual_by": rs.manual_by,
         "schedule_start": rs.schedule_start, "schedule_end": rs.schedule_end, "schedule_days": rs.schedule_days,
-        "retention_days": rs.retention_days,
+        "retention_days": rs.retention_days, "motion_sensitivity": rs.motion_sensitivity,
+        "last_motion_at": rs.last_motion_at,
+        "motion_level": rs.motion_level if fresh and rs.mode == "motion" else None,
+        "motion_mask": rs.motion_mask, **{t: getattr(rs, t) for t in TOGGLES},
+        "motion_live": rs.motion_live if fresh and rs.mode == "motion" else None,
+        "motion_suppressed": rs.motion_suppressed if fresh and rs.mode == "motion" else None,
         # status older than 90 s means the recorder isn't running
         "active": bool(rs.rec_active and fresh), "reason": rs.rec_reason if fresh else None,
         "recorder_alive": fresh, "error": rs.last_error,
@@ -166,14 +184,16 @@ def list_rec_settings(db: Session = Depends(get_db), user: User = Depends(requir
 @router.put("/api/recording/cameras/{slug}")
 def put_rec_settings(slug: str, body: CameraRecIn, request: Request, db: Session = Depends(get_db),
                      user: User = Depends(require_role("admin"))):
-    if body.mode == "motion":
-        raise HTTPException(400, "Snimanje na pokret stiže u sledećem koraku")
     if body.mode == "schedule" and (body.schedule_start is None or body.schedule_end is None or not body.schedule_days):
         raise HTTPException(400, "Za raspored unesi početak, kraj i bar jedan dan")
     cam = _camera(db, slug)
     rs = _settings_for(db, cam)
     rs.mode, rs.schedule_start, rs.schedule_end = body.mode, body.schedule_start, body.schedule_end
     rs.schedule_days, rs.retention_days = body.schedule_days, body.retention_days
+    rs.motion_sensitivity = body.motion_sensitivity
+    rs.motion_mask = body.motion_mask if body.motion_mask and "1" in body.motion_mask else None
+    for t in TOGGLES:
+        setattr(rs, t, getattr(body, t))
     db.commit()
     audit(db, "recording_settings_set", user=user, target=slug, detail=body.model_dump_json(), ip=client_ip(request))
     return rec_json(rs)

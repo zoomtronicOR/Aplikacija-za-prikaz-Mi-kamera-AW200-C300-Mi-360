@@ -97,6 +97,19 @@ class RecordingSettings(Base):
     rec_reason: Mapped[str | None] = mapped_column(String(16))
     status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
+    last_motion_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motion_level: Mapped[float | None] = mapped_column(Float)
+    # 144-char '0'/'1' block masks (9 rows x 16 columns), see migration 0006
+    motion_mask: Mapped[str | None] = mapped_column(String(144))
+    # every optional recording feature has its own switch (user requirement)
+    motion_auto_ignore: Mapped[bool] = mapped_column(Boolean, default=True)
+    motion_zones_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    motion_noise_adapt: Mapped[bool] = mapped_column(Boolean, default=True)
+    motion_require_group: Mapped[bool] = mapped_column(Boolean, default=True)
+    motion_pre_roll: Mapped[bool] = mapped_column(Boolean, default=True)
+    record_audio: Mapped[bool] = mapped_column(Boolean, default=True)
+    motion_live: Mapped[str | None] = mapped_column(String(144))
+    motion_suppressed: Mapped[str | None] = mapped_column(String(144))
 
 
 class Recording(Base):

@@ -2,7 +2,7 @@ import re
 import unicodedata
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -151,6 +151,16 @@ async def delete_camera(slug: str, request: Request, db: Session = Depends(get_d
     db.delete(cam)
     db.commit()
     audit(db, "camera_deleted", user=user, target=slug, ip=client_ip(request))
+
+
+@router.get("/{slug}/snapshot")
+async def snapshot(slug: str, db: Session = Depends(get_db), user: User = Depends(require_role("admin"))):
+    """Current picture from the stream the motion detector analyses (for drawing ignore zones)."""
+    cam = get_camera(db, slug)
+    data = await go2rtc.frame(cam.sd_stream or cam.slug)
+    if not data:
+        raise HTTPException(502, "Kamera nije poslala sliku")
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/{slug}/state")

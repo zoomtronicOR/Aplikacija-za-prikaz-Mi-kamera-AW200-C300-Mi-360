@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.models import Camera, RecordingSettings, RecordingStorage
+from app.recorder.motion import MotionDetector, MotionOptions, mask_str
 from app.recorder.schedule import in_window
 from app.recorder.uploader import apply_retention, buffer_bytes, enforce_buffer_cap, upload_pending
 from app.recorder.worker import CameraWorker, recover_leftovers
@@ -40,12 +41,31 @@ def wanted_reason(rs: RecordingSettings, now_local: datetime) -> str | None:
         return "continuous"
     if rs.mode == "schedule" and in_window(now_local, rs.schedule_start, rs.schedule_end, rs.schedule_days):
         return "schedule"
-    return None  # "motion" is handled in a later stage
+    return None  # motion is not a standing reason: the worker keeps segments around detections
+
+
+def sync_detector(detectors: dict[str, MotionDetector], cam: Camera, rs: RecordingSettings, rtsp: str) -> list[float]:
+    """Starts/stops the camera's detector to match its mode and returns new motion timestamps."""
+    det = detectors.get(cam.slug)
+    if rs.mode != "motion":
+        if det:
+            detectors.pop(cam.slug).stop()
+        return []
+    options = MotionOptions(sensitivity=rs.motion_sensitivity, mask=rs.motion_mask,
+                            zones_enabled=rs.motion_zones_enabled, auto_ignore=rs.motion_auto_ignore,
+                            noise_adapt=rs.motion_noise_adapt, require_group=rs.motion_require_group)
+    if det is None:
+        # the SD stream is cheaper to decode; ESP32 and generic cameras may only have the main one
+        det = detectors[cam.slug] = MotionDetector(cam.slug, f"{rtsp}/{cam.sd_stream or cam.slug}", options)
+    elif det.options != options:
+        det.configure(options)
+    return det.drain()
 
 
 def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
     s = get_settings()
     workers: dict[str, CameraWorker] = {}
+    detectors: dict[str, MotionDetector] = {}
     last_status: dict[str, tuple] = {}
     last_status_at = 0.0
     while not stopping.is_set():
@@ -68,24 +88,40 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                     if w is None:
                         w = workers[cam.slug] = CameraWorker(cam.slug, f"{s.go2rtc_rtsp_url}/{cam.slug}", buffer_dir)
                     reason = wanted_reason(rs, now_local)
-                    w.tick(reason, now)
+                    motion = sync_detector(detectors, cam, rs, s.go2rtc_rtsp_url)
+                    w.tick(reason, now, armed=rs.mode == "motion", motion=motion,
+                           pre_roll=rs.motion_pre_roll, audio=rs.record_audio)
                     active.add(cam.slug)
+                    if motion:
+                        rs.last_motion_at = datetime.fromtimestamp(motion[-1], timezone.utc)
 
-                    status = (w.running, reason if w.running else None, w.last_error)
+                    det = detectors.get(cam.slug)
+                    # "recording" for the UI: a standing reason, or motion within its post-roll
+                    if reason is None and w.motion_active(now):
+                        reason = "motion"
+                    error = w.last_error or (det.error if det else None)
+                    status = (w.running and reason is not None, reason if w.running else None, error)
                     if status != last_status.get(cam.slug) or now - last_status_at > STATUS_EVERY_S:
                         rs.rec_active, rs.rec_reason, rs.last_error = status
                         rs.status_at = datetime.now(timezone.utc)
                         last_status[cam.slug] = status
+                    if det:
+                        rs.motion_level = round(det.level, 3)
+                        rs.motion_live, rs.motion_suppressed = mask_str(det.live), mask_str(det.suppressed)
                 if now - last_status_at > STATUS_EVERY_S:
                     last_status_at = now
                 db.commit()
 
             for slug in set(workers) - active:  # disabled or deleted cameras
                 workers.pop(slug).shutdown()
+            for slug in set(detectors) - active:
+                detectors.pop(slug).stop()
         except Exception:
             log.exception("record loop failed")
         stopping.wait(LOOP_S)
 
+    for d in detectors.values():
+        d.stop()
     for w in workers.values():
         w.shutdown()
 

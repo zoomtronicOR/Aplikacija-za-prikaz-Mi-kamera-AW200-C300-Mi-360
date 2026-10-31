@@ -11,7 +11,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
   - ESP32-CAM: rezolucija, kvalitet, osvetljenost, kontrast, zasićenost, okretanje i ogledalo, automatski balans bele i ekspozicija.
 - **Okretanje (PTZ)** za C300 i Mi 360, strelicama preko slike (potrebna je go2rtc verzija sa PTZ izmenom, vidi niže).
 - **Dodavanje drugih kamera** iz interfejsa: RTSP, ONVIF, RTMP i HTTP/MJPEG, uz proveru veze pre čuvanja. ESP32-CAM se prepoznaje automatski i dobija kontrole.
-- **Snimanje** na Windows deljeni folder ili NAS (SMB). Može ručno (dugme REC), stalno (24/7) ili po rasporedu. Stari snimci se automatski brišu. Snimci se pregledaju, puštaju i preuzimaju u aplikaciji. Snimanje na pokret je u izradi.
+- **Snimanje** na Windows deljeni folder ili NAS (SMB). Može ručno (dugme REC), stalno (24/7), po rasporedu ili **na pokret**: otporno na drveće na vetru i noćni šum, sa zonama za ignorisanje i 10 s snimka pre pokreta. Stari snimci se automatski brišu. Snimci se pregledaju, puštaju i preuzimaju u aplikaciji.
 - **Korisnici i uloge:**
   - administrator: sve;
   - korisnik: prikaz i kontrole;
@@ -193,6 +193,23 @@ Snimanjem upravlja poseban servis (`recorder`), koji radi i kada niko nije prija
 3. Ručno snimanje pokreće se dugmetom **REC** na kartici kamere, nezavisno od izabranog načina.
 
 Za orijentaciju, stalno snimanje Xiaomi kamere u HD-u zauzima oko 0,6 GB po satu (~14 GB dnevno).
+
+### Snimanje na pokret
+
+Detektor prati SD sliku kamere: 4 sličice u sekundi, smanjene na 160×90 i podeljene na 16×9 polja. Snima se samo kad se pomeri **povezana grupa polja**, dovoljno velika prema podešenoj osetljivosti, i to u dve uzastopne sličice. Čuva se 10 s pre pokreta i 20 s posle poslednjeg pokreta. Server pri tome troši oko 3–4% procesora po kameri.
+
+Svaka dodatna opcija ima svoj prekidač na stranici **Snimanje**, a sve su podrazumevano uključene:
+
+| Opcija | Šta radi |
+|---|---|
+| Ignoriši delove koji se stalno pomeraju | Delovi slike koji se pomeraju veći deo poslednjih minuta (drveće i žbunje na vetru) privremeno se ne računaju. Čovek koji prođe kroz miran deo slike se računa. Detektoru treba 2–3 minuta da „nauči” scenu. |
+| Koristi ručne zone | Klikom na polja preko slike kamere (dugme **Zone**) označiš delove koji se nikad ne gledaju. Uživo se vidi šta se pomera (crveno) i šta je automatski ignorisano (žuto). |
+| Prilagodi prag šumu | Prag se sam podiže kad je slika zrnasta (noć, kiša). |
+| Traži povezanu grupu | Raštrkana pojedinačna polja (treperenje lišća, šum) ne pokreću snimanje. |
+| Snimi i 10 s pre pokreta | Snimak počinje deo pre trenutka kad je pokret uočen. |
+| Snimaj zvuk | Važi za sve načine snimanja. |
+
+Promena cele slike odjednom, kao uključenje IR noćnog režima ili svetla, ne računa se kao pokret.
 
 ## Rad i održavanje
 
