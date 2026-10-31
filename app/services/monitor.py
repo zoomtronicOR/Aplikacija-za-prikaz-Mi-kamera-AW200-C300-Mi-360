@@ -33,6 +33,10 @@ def tcp_ping(host: str, port: int, timeout: float = 2.0) -> bool:
 def reachable(cam: Camera) -> bool:
     if cam.kind == "xiaomi":
         return miio.ping(cam.ip)
+    if (cam.model or "").startswith("esp32-") and cam.ip:
+        # the stream port (81) serves one client, which is go2rtc while it streams; the control
+        # server on 80 answers alongside it
+        return tcp_ping(cam.ip, 80)
     hp = go2rtc.host_port(cam.source_display or "")
     return tcp_ping(*hp) if hp else False
 

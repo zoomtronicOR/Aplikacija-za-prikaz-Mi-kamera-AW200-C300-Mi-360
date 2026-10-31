@@ -19,7 +19,7 @@ from sqlalchemy import delete, select
 from app.core.config import get_settings
 from app.core.crypto import decrypt
 from app.core.db import SessionLocal
-from app.models import Camera, Event, NotifyChannel, NotifySettings
+from app.models import Camera, Event, NotifyChannel, NotifySettings, RecordingSettings
 from app.notify.channels import SENDERS, ChannelError, Message
 from app.notify.mqtt_bridge import MqttBridge
 from app.recorder.schedule import in_window
@@ -101,16 +101,25 @@ async def process_once(tz: ZoneInfo) -> None:
         enabled, cfg, secret = channel_config(channels.get("mqtt"))
         mqtt.configure(enabled, cfg, secret)
         mqtt.set_cameras([{"slug": c.slug, "name": c.name, "model": c.model} for c in cams.values() if c.enabled])
+        rec = {r.camera_id: r for r in db.execute(select(RecordingSettings)).scalars()}
         for c in cams.values():
-            if c.enabled and c.slug in monitor.online:
+            if not c.enabled:
+                continue
+            if c.slug in monitor.online:
                 mqtt.set_state(c.slug, "status", "online" if monitor.online[c.slug] else "offline")
+            # motion state from the recorder's live status, not from the last event: self-healing
+            # after restarts or lost events
+            r = rec.get(c.id)
+            fresh = r is not None and r.status_at is not None and \
+                r.status_at > datetime.now(timezone.utc) - timedelta(seconds=90)  # recorder alive
+            moving = bool(fresh and r.mode == "motion" and r.rec_active and r.rec_reason == "motion")
+            mqtt.set_state(c.slug, "motion", "ON" if moving else "OFF")
 
         evs = db.execute(select(Event).where(Event.processed.is_(False)).order_by(Event.id).limit(50)).scalars().all()
         for ev in evs:
             ev.processed = True
             cam = cams.get(ev.camera_id)
             if cam and ev.kind in ("motion_start", "motion_end"):
-                mqtt.set_state(cam.slug, "motion", "ON" if ev.kind == "motion_start" else "OFF")
                 mqtt.event(cam.slug, "motion", ev.kind == "motion_start")
             elif cam:
                 mqtt.event(cam.slug, ev.kind, None)
