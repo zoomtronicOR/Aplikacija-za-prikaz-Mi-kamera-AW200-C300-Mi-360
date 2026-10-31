@@ -8,7 +8,7 @@ get_prop. The ESP32 driver talks to Espressif's CameraWebServer over HTTP (/stat
 import gzip
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import httpx
 
@@ -86,6 +86,21 @@ class DeviceRegistry:
 
 
 devices = DeviceRegistry()
+
+
+def save_token(did: str, entry: dict) -> None:
+    """Adds or replaces one device in the tokens file (bind-mounted single file, chmod 600).
+
+    The file is rewritten in place: a bind-mounted file can't be replaced by rename.
+    """
+    path = get_settings().miio_tokens_file
+    with open(path, "r+") as f:
+        data = json.load(f)
+        data[did] = entry
+        f.seek(0)
+        f.write(json.dumps(data, indent=2, ensure_ascii=False))
+        f.truncate()
+    devices._devices.pop(did, None)
 
 
 async def _miio(cam: Camera, method: str, params):
@@ -264,10 +279,33 @@ MODELS: dict[str, MiotModel | LegacyModel | Esp32Model] = {
 }
 
 
-def capabilities(model: str | None) -> dict:
-    m = MODELS.get(model or "")
+CODECS = {"bool": BOOL, "flip": FLIP}
+
+
+def model_from_json(data: str) -> MiotModel:
+    """A MiotModel from the spec-derived JSON stored on a camera added through the UI."""
+    props = {}
+    for key, (siid, piid, codec, mapping) in json.loads(data)["props"].items():
+        if key in XIAOMI_CONTROLS:
+            props[key] = (siid, piid, enum(mapping) if codec == "enum" else CODECS[codec])
+    return MiotModel(props=props)
+
+
+def model_for(cam: Camera) -> MiotModel | LegacyModel | Esp32Model | None:
+    """Known model first, else the controls derived from the camera's MIoT spec; the camera's
+    own PTZ switch overrides the model default."""
+    m = MODELS.get(cam.model or "")
+    if m is None and cam.controls_json:
+        m = model_from_json(cam.controls_json)
+    if m is not None and cam.ptz is not None and cam.ptz != m.ptz:
+        m = replace(m, ptz=cam.ptz)
+    return m
+
+
+def capabilities(cam: Camera) -> dict:
+    m = model_for(cam)
     if m is None:
-        return {"controls": [], "actions": [], "ptz": False}
+        return {"controls": [], "actions": [], "ptz": bool(cam.ptz)}
     return {
         "controls": [c.__dict__ for c in m.controls.values()],
         "actions": [{"key": a, "label": ACTION_LABELS[a]} for a in m.actions],

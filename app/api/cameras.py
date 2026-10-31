@@ -13,7 +13,7 @@ from app.core.db import get_db
 from app.core.security import audit, client_ip, current_user, require_role
 from app.models import Camera, RecordingSettings, User
 from app.services import go2rtc, monitor
-from app.services.controls import MODELS, ControlError, capabilities, detect_esp32
+from app.services.controls import ControlError, capabilities, detect_esp32, model_for
 
 router = APIRouter(prefix="/api/cameras")
 
@@ -41,6 +41,7 @@ class UpdateCamera(BaseModel):
     location: str | None = Field(default=None, max_length=128)
     enabled: bool | None = None
     sort_order: int | None = None
+    ptz: bool | None = None  # pan/tilt arrows on/off for this camera
 
 
 def get_camera(db: Session, slug: str, include_disabled: bool = False) -> Camera:
@@ -67,7 +68,7 @@ def camera_json(c: Camera, user: User) -> dict:
         "slug": c.slug, "name": c.name, "location": c.location, "icon": c.icon, "kind": c.kind, "model": c.model,
         "enabled": c.enabled, "sort_order": c.sort_order,
         "online": monitor.online.get(c.slug), "last_seen_at": c.last_seen_at,
-        "can_control": user.role in CONTROL_ROLES, "has_sd": bool(c.sd_stream), **capabilities(c.model or ""),
+        "can_control": user.role in CONTROL_ROLES, "has_sd": bool(c.sd_stream), **capabilities(c),
     }
     if user.role == "admin":  # sensitive identifiers are admin-only (spec 5.5)
         item |= {"did": c.did, "ip": c.ip, "mac": c.mac, "region": c.region, "source": c.source_display}
@@ -142,9 +143,8 @@ def update_camera(slug: str, body: UpdateCamera, request: Request, db: Session =
 async def delete_camera(slug: str, request: Request, db: Session = Depends(get_db),
                         user: User = Depends(require_role("admin"))):
     cam = get_camera(db, slug, include_disabled=True)
-    if cam.kind == "xiaomi":
-        # import-cameras would bring it back from go2rtc.yaml; disabling is the supported way
-        raise HTTPException(400, "Xiaomi kamere se ne brišu, već isključuju (zadržavaju vezu sa nalogom)")
+    # removing the go2rtc streams also keeps import-cameras from bringing a Xiaomi camera back;
+    # its token stays in the tokens file, so adding it again later is instant
     await go2rtc.delete_stream(cam.slug)
     if cam.sd_stream:
         await go2rtc.delete_stream(cam.sd_stream)
@@ -166,7 +166,7 @@ async def snapshot(slug: str, db: Session = Depends(get_db), user: User = Depend
 @router.get("/{slug}/state")
 async def get_state(slug: str, db: Session = Depends(get_db), user: User = Depends(current_user)):
     cam = get_camera(db, slug)
-    model = MODELS.get(cam.model or "")
+    model = model_for(cam)
     if model is None:
         return {}
     try:
@@ -179,7 +179,7 @@ async def get_state(slug: str, db: Session = Depends(get_db), user: User = Depen
 async def set_state(slug: str, body: SetControl, request: Request, db: Session = Depends(get_db),
                     user: User = Depends(require_role(*CONTROL_ROLES))):
     cam = get_camera(db, slug)
-    model = MODELS.get(cam.model or "")
+    model = model_for(cam)
     control = model.controls.get(body.key) if model else None
     if control is None:
         raise HTTPException(400, "Kamera ne podržava ovu kontrolu")
@@ -204,7 +204,7 @@ async def ptz_step(slug: str, direction: str, quality: str = "hd", db: Session =
     The motor command rides on a live session, so it goes to the stream the viewer is watching.
     """
     cam = get_camera(db, slug)
-    model = MODELS.get(cam.model or "")
+    model = model_for(cam)
     if model is None or not model.ptz or direction not in PTZ_OPERATIONS:
         raise HTTPException(400, "Kamera ne podržava okretanje u tom smeru")
     r = await go2rtc.motor(go2rtc_stream(cam, quality), PTZ_OPERATIONS[direction])
@@ -219,7 +219,7 @@ async def ptz_step(slug: str, direction: str, quality: str = "hd", db: Session =
 async def run_action(slug: str, name: str, request: Request, db: Session = Depends(get_db),
                      user: User = Depends(require_role("admin"))):
     cam = get_camera(db, slug)
-    model = MODELS.get(cam.model or "")
+    model = model_for(cam)
     if model is None or name not in model.actions:
         raise HTTPException(400, "Kamera ne podržava ovu radnju")
     try:

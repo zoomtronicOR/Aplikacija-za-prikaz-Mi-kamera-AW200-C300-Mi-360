@@ -51,6 +51,9 @@ class Camera(Base):
     stream_profile: Mapped[str | None] = mapped_column(String(16))
     # separate go2rtc stream for the SD profile; the cameras accept a second session alongside HD
     sd_stream: Mapped[str | None] = mapped_column(String(64))
+    # controls derived from the MIoT spec for models the app doesn't know (added through the UI)
+    controls_json: Mapped[str | None] = mapped_column(Text)
+    ptz: Mapped[bool | None] = mapped_column(Boolean)  # None: the model's default
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -40,23 +40,30 @@ function row(c, i, cams) {
   enabled.addEventListener('change', () => patch({ enabled: enabled.checked }));
 
   const actions = el('td', { class: 'text-nowrap' }, save);
-  if (c.kind === 'generic') {
-    const del = el('button', { class: 'btn btn-sm btn-outline-danger ms-1' }, 'Obriši');
-    del.onclick = async () => {
-      if (del.dataset.armed) {
-        try { await api(`/api/cameras/${c.slug}`, { method: 'DELETE' }); await load(); } catch (e) { err.textContent = e.message; }
-      } else {
-        del.dataset.armed = '1'; del.textContent = 'Potvrdi brisanje';
-        setTimeout(() => { delete del.dataset.armed; del.textContent = 'Obriši'; }, 4000);
-      }
-    };
-    actions.append(del);
-  }
-  actions.append(err);
+  const del = el('button', { class: 'btn btn-sm btn-outline-danger ms-1' }, 'Obriši');
+  del.onclick = async () => {
+    if (del.dataset.armed) {
+      try { await api(`/api/cameras/${c.slug}`, { method: 'DELETE' }); await load(); await loadXiaomiIfShown(); }
+      catch (e) { err.textContent = e.message; }
+    } else {
+      del.dataset.armed = '1'; del.textContent = 'Potvrdi brisanje';
+      setTimeout(() => { delete del.dataset.armed; del.textContent = 'Obriši'; }, 4000);
+    }
+  };
+  actions.append(del, err);
 
   const source = c.kind === 'xiaomi'
     ? el('span', {}, `Xiaomi · ${c.model || ''}`, el('br'), el('span', { class: 'small text-body-secondary' }, c.ip || ''))
     : el('span', { class: 'small font-monospace text-break' }, c.source || '');
+  if (c.kind === 'xiaomi') {
+    // pan/tilt arrows on or off for this camera
+    const id = `ptz-${c.slug}`;
+    const ptz = el('input', { class: 'form-check-input', type: 'checkbox', role: 'switch', id });
+    ptz.checked = !!c.ptz;
+    ptz.addEventListener('change', () => patch({ ptz: ptz.checked }));
+    source.append(el('div', { class: 'form-check form-switch small mb-0' }, ptz,
+      el('label', { class: 'form-check-label', for: id }, 'okretanje (PTZ)')));
+  }
 
   return el('tr', {},
     el('td', { class: 'text-nowrap' },
@@ -101,5 +108,109 @@ form.addEventListener('submit', async ev => {
   finally { btn.disabled = false; }
 });
 
+// --- Xiaomi account and cameras ----------------------------------------------------------------
+const xAccount = document.getElementById('x-account');
+const xRegion = document.getElementById('x-region');
+const xMsg = document.getElementById('x-msg');
+const xTable = document.getElementById('x-table');
+const xBody = document.getElementById('x-devices');
+const xLogin = document.getElementById('x-login');
+const xSay = (text, ok) => { xMsg.textContent = text; xMsg.className = 'small ' + (ok ? 'text-success' : 'text-danger'); };
+
+async function loadAccounts() {
+  const { accounts, regions } = await api('/api/xiaomi/accounts');
+  xAccount.replaceChildren(...(accounts.length ? accounts.map(a => el('option', { value: a }, a))
+    : [el('option', { value: '' }, '(nema prijave)')]));
+  if (!xRegion.options.length) {
+    for (const [v, label] of Object.entries(regions)) xRegion.append(el('option', { value: v }, label));
+  }
+  if (!accounts.length) xLogin.classList.remove('d-none');
+}
+
+function deviceRow(d) {
+  const name = el('input', { class: 'form-control form-control-sm', value: d.name, maxlength: 128, 'aria-label': 'Naziv' });
+  const ptzId = `xptz-${d.did}`;
+  const ptz = el('input', { class: 'form-check-input', type: 'checkbox', role: 'switch', id: ptzId });
+  ptz.checked = ['xiaomi.camera.c01a01', 'chuangmi.camera.ipc019'].includes(d.model);
+  const result = el('div', { class: 'small' });
+  const action = el('td', { class: 'text-nowrap' });
+  if (d.added_as) {
+    action.append(el('span', { class: 'badge text-bg-secondary' }, `dodata: ${d.added_as}`));
+  } else {
+    const add = el('button', { class: 'btn btn-sm btn-primary' }, 'Dodaj');
+    add.disabled = !d.reachable;
+    add.title = d.reachable ? '' : 'Kamera nije dostupna iz mreže servera';
+    add.onclick = async () => {
+      add.disabled = true; add.textContent = 'Dodajem…'; result.className = 'small'; result.textContent = '';
+      try {
+        const cam = await api('/api/xiaomi/cameras', { method: 'POST', body: JSON.stringify({
+          account: xAccount.value, region: xRegion.value, did: d.did, name: name.value, ptz: ptz.checked }) });
+        const r = cam.report;
+        result.className = 'small text-success';
+        result.textContent = `Dodata: HD ${r.hd}${r.sd ? `, SD ${r.sd}` : ''}, kontrola: ${r.controls}.`;
+        add.remove();
+        await load();
+      } catch (e) {
+        result.className = 'small text-danger'; result.textContent = e.message;
+        add.disabled = false; add.textContent = 'Dodaj';
+      }
+    };
+    action.append(add);
+  }
+  action.append(result);
+  return el('tr', {},
+    el('td', {}, d.added_as ? d.name : name),
+    el('td', { class: 'small' }, d.model, ' ', el('span', { class: `badge ${d.known_model ? 'text-bg-success' : 'text-bg-info'}` },
+      d.known_model ? 'provereno' : 'novi model')),
+    el('td', { class: 'small' }, d.ip),
+    el('td', {}, el('span', { class: `badge ${d.reachable ? 'text-bg-success' : 'text-bg-secondary'}` }, d.reachable ? 'da' : 'ne')),
+    el('td', {}, d.added_as ? '' : el('div', { class: 'form-check form-switch mb-0' }, ptz,
+      el('label', { class: 'form-check-label small', for: ptzId }, 'ima motor'))),
+    action);
+}
+
+async function loadXiaomi() {
+  if (!xAccount.value) { xSay('Prvo se prijavi na Xiaomi nalog.', false); return; }
+  xSay('Učitavam…', true);
+  try {
+    const list = await api(`/api/xiaomi/devices?account=${encodeURIComponent(xAccount.value)}&region=${xRegion.value}`);
+    // cameras in this network first
+    list.sort((a, b) => (b.reachable - a.reachable) || a.name.localeCompare(b.name));
+    xBody.replaceChildren(...list.map(deviceRow));
+    xTable.classList.remove('d-none');
+    xSay(`${list.length} kamera na nalogu, ${list.filter(d => d.reachable).length} u ovoj mreži.`, true);
+  } catch (e) { xSay(e.message, false); }
+}
+async function loadXiaomiIfShown() { if (!xTable.classList.contains('d-none')) await loadXiaomi(); }
+
+document.getElementById('x-load').onclick = loadXiaomi;
+document.getElementById('x-login-toggle').onclick = () => xLogin.classList.toggle('d-none');
+
+xLogin.addEventListener('submit', async ev => {
+  ev.preventDefault();
+  // only the visible step's fields: go2rtc restarts the login whenever it gets a username
+  const step = ['captcha', 'verify'].find(s => !xLogin.querySelector(`.x-step-${s}`).classList.contains('d-none')) || 'cred';
+  const fields = { cred: ['username', 'password'], captcha: ['captcha'], verify: ['verify'] }[step];
+  const body = Object.fromEntries(fields.map(k => [k, xLogin.elements[k].value.trim()]).filter(([, v]) => v));
+  xSay('Prijavljujem…', true);
+  try {
+    const r = await api('/api/xiaomi/login', { method: 'POST', body: JSON.stringify(body) });
+    const show = step => ['cred', 'captcha', 'verify'].forEach(s =>
+      xLogin.querySelector(`.x-step-${s}`).classList.toggle('d-none', s !== step));
+    if (r.status === 'captcha') {
+      document.getElementById('x-captcha-img').src = 'data:image/jpeg;base64,' + r.image;
+      xLogin.elements.captcha.value = '';
+      show('captcha'); xSay('Prepiši znakove sa slike.', true);
+    } else if (r.status === 'verify') {
+      document.getElementById('x-verify-target').textContent = `Xiaomi je poslao kod na ${r.target}.`;
+      show('verify'); xSay('Unesi kod iz poruke.', true);
+    } else {
+      xLogin.reset(); show('cred'); xLogin.classList.add('d-none');
+      xSay('Prijava uspela.', true);
+      await loadAccounts();
+    }
+  } catch (e) { xSay(e.message, false); }
+});
+
 // no auto-refresh: it would wipe names being edited in the table
-await load();
+await Promise.all([load(), loadAccounts()]);

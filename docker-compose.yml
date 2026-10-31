@@ -42,7 +42,8 @@ services:
       go2rtc:
         condition: service_started
     volumes:
-      - ./config/miio_tokens.json:/config/miio_tokens.json:ro
+      # writable: adding a Xiaomi camera in the UI stores its token here
+      - ./config/miio_tokens.json:/config/miio_tokens.json
 
   recorder:
     # same image as the app; records independently of logged-in users

@@ -10,6 +10,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
   - Xiaomi: uključi/uspavaj, noćni režim, okretanje slike, vremenski žig, lampica, WDR, kolor noću, praćenje pokreta, restart;
   - ESP32-CAM: rezolucija, kvalitet, osvetljenost, kontrast, zasićenost, okretanje i ogledalo, automatski balans bele i ekspozicija.
 - **Okretanje (PTZ)** za C300 i Mi 360, strelicama preko slike (potrebna je go2rtc verzija sa PTZ izmenom, vidi niže).
+- **Dodavanje Xiaomi kamera iz aplikacije:** prijava na Xiaomi nalog, spisak kamera i dodavanje jednim klikom, sa automatskim profilima slike, tokenom i kontrolama, i za modele koje aplikacija ranije nije poznavala.
 - **Dodavanje drugih kamera** iz interfejsa: RTSP, ONVIF, RTMP i HTTP/MJPEG, uz proveru veze pre čuvanja. ESP32-CAM se prepoznaje automatski i dobija kontrole.
 - **Snimanje** na Windows deljeni folder ili NAS (SMB). Može ručno (dugme REC), stalno (24/7), po rasporedu ili **na pokret**: otporno na drveće na vetru i noćni šum, sa zonama za ignorisanje i 10 s snimka pre pokreta. Stari snimci se automatski brišu. Snimci se pregledaju, puštaju i preuzimaju u aplikaciji.
 - **Korisnici i uloge:**
@@ -95,61 +96,42 @@ docker build -f docker/Dockerfile -t go2rtc-local:1.9.15-ptz-e23a21b .
 
 Bez okretanja: u `docker-compose.yml` zameni image sa `alexxit/go2rtc:1.9.15` i obriši red `pull_policy: never`. Strelice će tada javljati da okretanje nije podržano, a sve ostalo radi.
 
-### 4. Prijava na Xiaomi nalog i dodavanje kamera u go2rtc
+### 4. Pokretanje aplikacije
 
 ```bash
 cd /opt/xiaomi-cam-hub
-docker compose up -d go2rtc
-```
-
-go2rtc web interfejs je dostupan samo sa samog servera. Sa svog računara otvori SSH tunel:
-
-```bash
-ssh -L 1984:127.0.0.1:1984 root@<server>
-```
-
-Zatim:
-
-1. Otvori http://localhost:1984 i prijavi se korisnikom `admin` i lozinkom iz `go2rtc.yaml`.
-2. Idi na **Add → Xiaomi**, prijavi se na Xiaomi nalog i izaberi region (Europe = `de`).
-3. Učitaj listu uređaja i za svaku kameru prepiši njenu `xiaomi://…` adresu u `config/go2rtc.yaml` pod `streams:`. Struktura je ista kao u `go2rtc.example.yaml`.
-4. Dodaj parametre za model:
-
-| Model | HD stream | SD stream (`<ime>_sd`) |
-|---|---|---|
-| AW200 | `&subtype=3` | `&subtype=1` |
-| C300 | `&subtype=3` (`hd` ne radi) | `&subtype=1` |
-| Mi 360 1080p | bez parametra + `ffmpeg:<ime>#audio=opus` | `&subtype=1` + `ffmpeg:<ime>_sd#audio=opus` |
-
-Na kraju restartuj go2rtc: `docker compose restart go2rtc`.
-
-### 5. Tokeni kamera (za kontrole)
-
-Token preuzima program `scripts/xiaomi-tokens`, koji koristi go2rtc-ovu Xiaomi prijavu, pa nova prijava nije potrebna. Tokeni se ne ispisuju na ekran:
-
-```bash
-cd /opt/xiaomi-cam-hub
-U=<Xiaomi ID iz go2rtc.yaml, sekcija xiaomi:>
-T=$(grep -m1 "\"$U\":" config/go2rtc.yaml | sed -E "s/^[^:]*\"$U\": *//")
-docker run --rm -e XIAOMI_USER=$U -e XIAOMI_PASSTOKEN="$T" -e XIAOMI_REGION=de \
-  -v "$PWD/scripts/xiaomi-tokens:/src" -v "$PWD/config:/out" -w /src golang:1.26-bookworm \
-  sh -c "go mod init xiaomi-tokens >/dev/null 2>&1; go get github.com/AlexxIT/go2rtc@v1.9.15 >/dev/null 2>&1 && go run . /out/miio_tokens.json <did1>,<did2>,<did3>"
-chown 10001:10001 config/miio_tokens.json && chmod 600 config/miio_tokens.json
-```
-
-DID svake kamere je u njenoj `xiaomi://` adresi (`did=…`).
-
-### 6. Pokretanje aplikacije
-
-```bash
+echo '{}' > config/miio_tokens.json && chown 10001:10001 config/miio_tokens.json && chmod 600 config/miio_tokens.json
 docker compose up -d --build
 docker compose exec app python -m app.cli create-user <ime> admin      # lozinka se unosi interaktivno, min. 12 znakova
-docker compose exec app python -m app.cli import-cameras               # uvozi Xiaomi kamere iz go2rtc.yaml
 ```
 
 Aplikacija je na `http://<server>:8080`.
 
-### 7. Noćna rezervna kopija
+### 5. Dodavanje Xiaomi kamera
+
+Sve se radi u aplikaciji, kao administrator, na stranici **Kamere** → **Xiaomi kamere**:
+
+1. **Prijava na Xiaomi nalog:** email, telefon ili Xiaomi ID i lozinka. Ako Xiaomi zatraži captcha ili kod poslat porukom, aplikacija prikaže polje za unos. Prijava se čuva u go2rtc-u, a lozinka se nigde ne upisuje.
+2. Izaberi nalog i region (Evropa = `de`) i klikni **Učitaj kamere sa naloga**. Prikazuju se sve kamere sa naloga, sa oznakom koje su dostupne iz mreže servera i koje su već dodate.
+3. Po želji promeni naziv, uključi **ima motor** za kamere koje se okreću i klikni **Dodaj**. Aplikacija tada sama:
+   - pronalazi HD i SD profil slike koji radi (za poznate modele koristi provereni, ostale proba redom);
+   - upisuje streamove u go2rtc, sa Opus zvukom koji se pokreće samo za kamere kojima treba;
+   - preuzima token kamere sa Xiaomi naloga i čuva ga u `config/miio_tokens.json`;
+   - za **modele koje još ne poznaje** čita njihov javni MIoT opis, pravi kontrole (uključi/uspavaj, noćni režim, okretanje slike, žig, WDR, kolor noću, praćenje pokreta, lampica) i zadržava samo one na koje kamera zaista odgovara.
+
+Dodavanje traje 10–60 sekundi. Okretanje (PTZ) se kasnije može uključiti ili isključiti u tabeli kamera.
+
+<details>
+<summary>Ručno dodavanje, bez aplikacije (rezerva)</summary>
+
+1. Otvori go2rtc preko SSH tunela (`ssh -L 1984:127.0.0.1:1984 root@<server>`, pa http://localhost:1984, korisnik `admin`, lozinka iz `go2rtc.yaml`).
+2. Idi na **Add → Xiaomi**, prijavi se i prepiši `xiaomi://…` adrese kamera u `config/go2rtc.yaml` (vidi `go2rtc.example.yaml`). Za AW200 i C300 dodaj `&subtype=3` (HD), odnosno `&subtype=1` (SD).
+3. Tokene preuzmi programom `scripts/xiaomi-tokens` (Go, pokreće se u `golang` kontejneru; uputstvo je u komentaru na početku fajla).
+4. `docker compose restart go2rtc && docker compose exec app python -m app.cli import-cameras`
+
+</details>
+
+### 6. Noćna rezervna kopija
 
 ```bash
 cat > /etc/cron.d/xiaomi-cam-hub-backup <<'EOF'

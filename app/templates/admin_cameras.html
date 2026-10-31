@@ -12,7 +12,47 @@
     </table>
   </div>
 
-  <h2 class="h6">Dodaj kameru</h2>
+  <h2 class="h6">Xiaomi kamere</h2>
+  <div class="card card-body gap-2 mb-4" style="max-width: 960px">
+    <div class="d-flex flex-wrap gap-2 align-items-end">
+      <div><label class="form-label small mb-0" for="x-account">Xiaomi nalog</label>
+        <select id="x-account" class="form-select form-select-sm" style="min-width: 10rem"></select></div>
+      <div><label class="form-label small mb-0" for="x-region">Region</label>
+        <select id="x-region" class="form-select form-select-sm"></select></div>
+      <button type="button" id="x-load" class="btn btn-sm btn-primary">Učitaj kamere sa naloga</button>
+      <button type="button" id="x-login-toggle" class="btn btn-sm btn-outline-secondary">Prijava na Xiaomi nalog</button>
+      <span id="x-msg" class="small"></span>
+    </div>
+
+    <form id="x-login" class="d-none border rounded p-2 gap-2" autocomplete="off">
+      <div class="small text-body-secondary mb-1">Prijava se čuva u go2rtc-u. Lozinka se ne upisuje u aplikaciju.
+        Za Microsoft/Google prijavu Xiaomi naloga prvo postavi lozinku na account.xiaomi.com.</div>
+      <div class="row g-2 x-step-cred">
+        <div class="col-sm-5"><input name="username" class="form-control form-control-sm" placeholder="Email, telefon ili Xiaomi ID" autocomplete="off"></div>
+        <div class="col-sm-4"><input name="password" type="password" class="form-control form-control-sm" placeholder="Lozinka" autocomplete="new-password"></div>
+      </div>
+      <div class="x-step-captcha d-none">
+        <img id="x-captcha-img" alt="Captcha" class="d-block mb-1 bg-white" style="height: 50px">
+        <input name="captcha" class="form-control form-control-sm" style="max-width: 12rem" placeholder="Prepiši znakove sa slike">
+      </div>
+      <div class="x-step-verify d-none">
+        <div class="small mb-1" id="x-verify-target"></div>
+        <input name="verify" class="form-control form-control-sm" style="max-width: 12rem" placeholder="Kod iz poruke">
+      </div>
+      <button class="btn btn-sm btn-primary mt-2">Prijavi se</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0 d-none" id="x-table">
+        <thead><tr><th>Naziv</th><th>Model</th><th>IP</th><th>U mreži</th><th>Okretanje</th><th></th></tr></thead>
+        <tbody id="x-devices"></tbody>
+      </table>
+    </div>
+    <div class="small text-body-secondary">Dodavanje traje do minut: aplikacija proba profile slike, preuzima token kamere
+      i, za modele koje još ne poznaje, pronalazi kontrole koje kamera podržava.</div>
+  </div>
+
+  <h2 class="h6">Dodaj drugu kameru (RTSP, ONVIF, ESP32…)</h2>
   <form id="add" class="card card-body gap-2" style="max-width: 720px" autocomplete="off">
     <div class="row g-2">
       <div class="col-sm-6"><label class="form-label small mb-0" for="f-name">Naziv</label>
