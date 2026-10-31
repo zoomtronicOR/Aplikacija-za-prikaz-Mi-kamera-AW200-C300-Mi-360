@@ -194,6 +194,19 @@ Svaka dodatna opcija ima svoj prekidač na stranici **Snimanje**, a sve su podra
 
 Promena cele slike odjednom, kao uključenje IR noćnog režima ili svetla, ne računa se kao pokret.
 
+### AI potvrda (osoba, vozilo, životinja)
+
+Po želji, za svaku kameru, pokret se računa tek kada model za prepoznavanje objekata vidi **osobu**, **vozilo** ili **životinju** na mestu gde se nešto pomerilo. Svaka grupa ima svoj prekidač, uz podešavanje minimalne sigurnosti. Model se pokreće samo dok se nešto pomera (~50 ms po slici na procesoru), a obaveštenje kaže šta je viđeno, npr. „Osoba (87%)”. Ako model nije dostupan, snima se svaki pokret kao ranije.
+
+Model (YOLOX-tiny, licenca Apache 2.0) se preuzima jednom:
+
+```bash
+mkdir -p /opt/xiaomi-cam-hub/data/models && cd /opt/xiaomi-cam-hub/data/models
+curl -fsSLO https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx
+echo "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7  yolox_tiny.onnx" | sha256sum -c
+chmod 644 yolox_tiny.onnx
+```
+
 ## Obaveštenja
 
 Podešavaju se kao administrator na stranici **Obaveštenja**. Svaki kanal ima prekidač, dugme **Pošalji probu** (za MQTT **Proveri vezu**) i prikaz poslednjeg uspešnog slanja i greške. Lozinke i tokeni se u bazi čuvaju šifrovani.
