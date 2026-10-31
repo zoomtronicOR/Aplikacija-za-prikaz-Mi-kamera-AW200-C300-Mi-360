@@ -1,6 +1,8 @@
 import re
 import unicodedata
+from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -9,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.api.recordings import rec_json
 from app.api.stream import go2rtc_stream
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.security import audit, client_ip, current_user, require_role
 from app.models import Camera, RecordingSettings, User
@@ -154,13 +157,18 @@ async def delete_camera(slug: str, request: Request, db: Session = Depends(get_d
 
 
 @router.get("/{slug}/snapshot")
-async def snapshot(slug: str, db: Session = Depends(get_db), user: User = Depends(require_role("admin"))):
-    """Current picture from the stream the motion detector analyses (for drawing ignore zones)."""
+async def snapshot(slug: str, quality: Literal["hd", "sd"] = "hd", download: bool = False,
+                   db: Session = Depends(get_db), user: User = Depends(require_role(*CONTROL_ROLES))):
+    """Current picture. quality=sd is what the motion detector analyses (the zone editor uses it)."""
     cam = get_camera(db, slug)
-    data = await go2rtc.frame(cam.sd_stream or cam.slug)
+    data = await go2rtc.frame(go2rtc_stream(cam, quality))
     if not data:
         raise HTTPException(502, "Kamera nije poslala sliku")
-    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+    headers = {"Cache-Control": "no-store"}
+    if download:
+        stamp = datetime.now(ZoneInfo(get_settings().timezone)).strftime("%Y-%m-%d_%H-%M-%S")
+        headers["Content-Disposition"] = f'attachment; filename="{cam.slug}_{stamp}.jpg"'
+    return Response(data, media_type="image/jpeg", headers=headers)
 
 
 @router.get("/{slug}/state")

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Kamera{% endblock %}
+{% block head %}<script type="module" src="/player/video-stream.js"></script>{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+
+<main class="container-fluid p-3" id="cam-root" data-slug="{{ slug }}" data-role="{{ user.role }}">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <a href="/" class="btn btn-sm btn-outline-secondary">← Sve kamere</a>
+    <span class="dot"></span>
+    <h1 class="h5 mb-0"><span class="name"></span> <span class="loc text-body-secondary small"></span></h1>
+    <span class="rec-badge badge text-bg-danger d-none">● REC</span>
+    <div class="ms-auto d-flex gap-2">
+      <button class="btn btn-sm btn-outline-danger btn-rec" title="Ručno snimanje">REC</button>
+      <button class="btn btn-sm btn-outline-secondary btn-quality" title="Kvalitet slike">HD</button>
+      <a class="btn btn-sm btn-outline-secondary btn-snap" title="Sačuvaj sliku (JPEG)">📷 Slika</a>
+      <button class="btn btn-sm btn-outline-secondary btn-fs" title="Ceo ekran (F)">⛶</button>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-9">
+      <div class="cam card"><div class="view view-large"></div></div>
+      <div class="small text-body-secondary mt-1 kbd-help d-none">Tastatura: strelice okreću kameru (drži za neprekidno okretanje), F – ceo ekran.</div>
+    </div>
+    <div class="col-lg-3 d-grid gap-3 align-content-start">
+      <section class="card card-body">
+        <h2 class="h6">Kontrole</h2>
+        <div class="controls"></div>
+      </section>
+      <section class="card card-body">
+        <div class="d-flex justify-content-between align-items-baseline">
+          <h2 class="h6 mb-2">Poslednji snimci</h2>
+          <a class="small all-recs">svi snimci →</a>
+        </div>
+        <div class="recent small text-body-secondary">Učitavanje…</div>
+      </section>
+    </div>
+  </div>
+</main>
+<script type="module" src="/static/camera.js"></script>
+{% endblock %}

@@ -61,6 +61,7 @@ async function load(reset) {
   if (camSel.value) q.set('camera', camSel.value);
   if (daySel.value) q.set('day', daySel.value);
   const data = await api(`/api/recordings?${q}`);
+  for (const r of data.items) loaded.set(r.id, r);
   rows.append(...data.items.map(row));
   offset += data.items.length;
   count.textContent = `${data.total} snimaka`;
@@ -68,8 +69,15 @@ async function load(reset) {
   if (!data.total) rows.append(el('tr', {}, el('td', { colspan: 6, class: 'text-body-secondary small' }, 'Nema snimaka za izabrani filter.')));
 }
 
+const loaded = new Map();
 for (const c of await api('/api/cameras')) camSel.append(el('option', { value: c.slug }, c.name));
 camSel.addEventListener('change', () => load(true));
 daySel.addEventListener('change', () => load(true));
 more.onclick = () => load(false);
+
+// links from a camera page: ?camera=<slug> preselects it, &play=<id> opens that recording
+const params = new URLSearchParams(location.search);
+if (params.get('camera')) camSel.value = params.get('camera');
 await load(true);
+const wanted = loaded.get(Number(params.get('play')));
+if (wanted) play(wanted);

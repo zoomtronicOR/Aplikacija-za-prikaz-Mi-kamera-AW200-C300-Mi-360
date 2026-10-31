@@ -24,6 +24,13 @@ def dashboard(request: Request, user: User | None = Depends(optional_user)):
     return templates.TemplateResponse(request, "dashboard.html", {"user": user})
 
 
+@router.get("/camera/{slug}", response_class=HTMLResponse)
+def camera_page(slug: str, request: Request, user: User | None = Depends(optional_user)):
+    if user is None:
+        return RedirectResponse("/login", 303)
+    return templates.TemplateResponse(request, "camera.html", {"user": user, "slug": slug})
+
+
 @router.get("/admin/cameras", response_class=HTMLResponse)
 def admin_cameras(request: Request, user: User | None = Depends(optional_user)):
     if user is None:

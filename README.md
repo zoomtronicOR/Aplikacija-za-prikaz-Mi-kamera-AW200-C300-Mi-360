@@ -4,7 +4,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
 
 ## Mogućnosti
 
-- **Prikaz uživo** svih kamera na jednoj stranici (WebRTC, MSE ili MJPEG, browser sam bira), prikaz preko celog ekrana i zvuk.
+- **Prikaz uživo** svih kamera na jednoj stranici (WebRTC, MSE ili MJPEG, browser sam bira), prikaz preko celog ekrana i zvuk. Klik na ime kamere otvara **stranicu kamere**: veliki prikaz, sve kontrole, okretanje strelicama na tastaturi, REC, **slika (JPEG) za preuzimanje** i poslednji snimci te kamere.
 - **Izbor HD/SD** za svaku kameru, posebno na svakom uređaju (npr. telefon na SD, računar na HD).
 - **Kontrole kamera** preko lokalne mreže:
   - Xiaomi: uključi/uspavaj, noćni režim, okretanje slike, vremenski žig, lampica, WDR, kolor noću, praćenje pokreta, restart;

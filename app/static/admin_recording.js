@@ -82,7 +82,7 @@ function zoneEditor(c) {
   const msg = el('span', { class: 'small text-danger ms-2' });
   const refresh = () => {
     msg.textContent = '';
-    img.src = `/api/cameras/${c.slug}/snapshot?t=${Date.now()}`;
+    img.src = `/api/cameras/${c.slug}/snapshot?quality=sd&t=${Date.now()}`;
   };
   img.addEventListener('error', () => { msg.textContent = 'Slika nije stigla, pokušaj ponovo.'; });
 
