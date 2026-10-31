@@ -30,7 +30,7 @@ echo "Ovo pokreni SAMO na kopiji na novoj lokaciji. Na originalu bi obrisalo kam
 
 new_ip=$(ask "IP adresa ovog servera na novoj lokaciji [$(hostname -I | awk '{print $1}')]: ")
 new_ip=${new_ip:-$(hostname -I | awk '{print $1}')}
-new_name=$(ask "Kratko ime servera (za HTTPS i Tailscale), npr. cam-debrc: ")
+new_name=$(ask "Kratko ime servera (za HTTPS i Tailscale), npr. cam-lokacija2: ")
 [[ "$new_name" =~ ^[a-z0-9-]{2,40}$ ]] || { echo "Ime: mala slova, brojevi i crtice."; exit 1; }
 
 echo "-> zaustavljam snimač (da ne snima i ne šalje snimke stare lokacije)"
