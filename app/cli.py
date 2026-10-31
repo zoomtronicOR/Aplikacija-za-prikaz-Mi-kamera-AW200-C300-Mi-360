@@ -2,6 +2,7 @@
 
     docker compose exec app python -m app.cli create-user <username> <admin|user|viewer>
     docker compose exec app python -m app.cli import-cameras
+    docker compose exec app python -m app.cli reset-site [--dry-run]   (used by scripts/prepare_new_site.sh)
 """
 import argparse
 import getpass
@@ -10,12 +11,12 @@ import re
 import sys
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.security import audit, hash_password
-from app.models import ROLES, Camera, User
+from app.models import ROLES, Camera, NotifyChannel, RecordingStorage, User
 
 # matches go2rtc.yaml stream entries such as:
 #   garden:
@@ -72,6 +73,44 @@ def import_cameras() -> None:
         audit(db, "cameras_imported", username="cli")
 
 
+def reset_site(dry_run: bool) -> None:
+    """Removes what belongs to the site this database was copied from: cameras (with their recording
+    settings), the recordings index (the files are on the old site's share), events, alarm state,
+    sessions, the recording storage target and the MQTT broker. Users, other notification channels
+    and all rules and switches stay."""
+    tables = [
+        ("sessions", "prijave (sesije)"),
+        ("events", "događaji"),
+        ("recordings", "spisak snimaka"),
+        ("recording_settings", "podešavanja snimanja po kameri"),
+        ("cameras", "kamere"),
+        ("system_alerts", "stanje alarma za disk"),
+    ]
+    with SessionLocal() as db:
+        for table, label in tables:
+            n = db.execute(text(f"select count(*) from {table}")).scalar()
+            print(f"{'obrisalo bi se' if dry_run else 'briše se'}: {label:<32} {n}")
+            if not dry_run:
+                db.execute(text(f"delete from {table}"))
+        st = db.get(RecordingStorage, 1)
+        mqtt = db.get(NotifyChannel, "mqtt")
+        share = rf"\\{st.host}\{st.share}" if st and st.host else "nije podešeno"
+        broker = json.loads(mqtt.config).get("host", "-") if mqtt else "-"
+        print(f"{'resetovalo bi se' if dry_run else 'resetuje se'}: skladište snimaka ({share}), MQTT ({broker})")
+        if dry_run:
+            return
+        if st:
+            for col in ("host", "share", "folder", "username", "password_enc", "status_ok", "status_error",
+                        "status_at", "share_total_bytes", "share_free_bytes"):
+                setattr(st, col, None)
+            st.pending_bytes = 0
+        if mqtt:
+            mqtt.enabled, mqtt.config, mqtt.secret_enc, mqtt.last_ok_at, mqtt.last_error = False, "{}", None, None, None
+        db.commit()
+        audit(db, "site_reset", username="cli", detail="podaci prethodne lokacije obrisani")
+    print("Baza je očišćena.")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="python -m app.cli")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -79,10 +118,14 @@ def main() -> None:
     cu.add_argument("username")
     cu.add_argument("role", choices=ROLES)
     sub.add_parser("import-cameras", help="uvezi kamere iz go2rtc konfiguracije")
+    rs = sub.add_parser("reset-site", help="obriši podatke lokacije sa koje je kopiran sistem (za novu lokaciju)")
+    rs.add_argument("--dry-run", action="store_true", help="samo prikaži šta bi bilo obrisano")
     args = p.parse_args()
 
     if args.cmd == "create-user":
         create_user(args.username, args.role)
+    elif args.cmd == "reset-site":
+        reset_site(args.dry_run)
     else:
         import_cameras()
 

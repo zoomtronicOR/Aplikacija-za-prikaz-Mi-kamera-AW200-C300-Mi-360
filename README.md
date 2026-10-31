@@ -322,3 +322,13 @@ Migracije baze (Alembic) pokreću se same pri startu aplikacije.
 ## Licenca
 
 [MIT](LICENSE) © 2026 Zoran Nikolić
+
+## Kopiranje sistema na novu lokaciju
+
+Ceo CT se može vratiti iz rezervne kopije na drugi Proxmox (sa novom MAC adresom) i pretvoriti u nezavisan sistem:
+
+```bash
+bash /opt/xiaomi-cam-hub/scripts/prepare_new_site.sh
+```
+
+Skripta prvo prikaže šta će obrisati i traži potvrdu (`DA`). Briše kamere, snimke iz spiska, događaje, sesije, skladište, MQTT, Tailscale identitet i streamove u go2rtc. Zadržava korisnike, Xiaomi prijavu, AI model i pravila obaveštenja. Na kraju ispiše sledeće korake. Nikad je ne pokreći na originalu.
