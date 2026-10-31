@@ -80,4 +80,9 @@ const params = new URLSearchParams(location.search);
 if (params.get('camera')) camSel.value = params.get('camera');
 await load(true);
 const wanted = loaded.get(Number(params.get('play')));
-if (wanted) play(wanted);
+if (wanted) {
+  play(wanted);
+  // &t=<seconds>: start at the moment of an event (from the event archive)
+  const t = Number(params.get('t'));
+  if (t > 0) player.addEventListener('loadedmetadata', () => { player.currentTime = t; }, { once: true });
+}

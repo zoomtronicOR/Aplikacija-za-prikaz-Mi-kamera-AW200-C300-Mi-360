@@ -17,6 +17,17 @@ body { background: #111; }
 .zone-grid div.suppressed { background: rgba(255, 193, 7, .35); }
 .zone-grid div.live { box-shadow: inset 0 0 0 2px #e33; }
 .zone-legend span { display: inline-block; width: .9em; height: .9em; vertical-align: -.1em; margin: 0 .25em 0 .75em; }
+.tl-row { display: grid; grid-template-columns: 9rem 1fr; gap: .5rem; align-items: center; }
+.tl-row .tl-name { font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-bar { position: relative; height: 18px; background: rgba(255, 255, 255, .06); border-radius: 3px; }
+.tl-bar .tl-mark { position: absolute; top: 0; bottom: 0; min-width: 3px; border-radius: 2px; cursor: pointer; }
+.tl-motion { background: #0dcaf0; }
+.tl-down { background: rgba(220, 53, 69, .55); }
+.tl-legend { display: inline-block; width: .9em; height: .9em; vertical-align: -.1em; border-radius: 2px; }
+.ev-card { display: grid; grid-template-columns: 160px 1fr; gap: .75rem; }
+.ev-card img, .ev-card .ev-noimg { width: 160px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; }
+.ev-card.highlight { outline: 2px solid #0dcaf0; }
+@media (max-width: 480px) { .tl-row { grid-template-columns: 5rem 1fr; } .ev-card { grid-template-columns: 110px 1fr; } .ev-card img, .ev-card .ev-noimg { width: 110px; } }
 .rec-badge { animation: rec-blink 1.5s steps(2, start) infinite; }
 @keyframes rec-blink { to { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .rec-badge { animation: none; } }

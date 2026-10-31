@@ -58,6 +58,13 @@ def admin_notify(request: Request, user: User | None = Depends(optional_user)):
     return templates.TemplateResponse(request, "admin_notify.html", {"user": user})
 
 
+@router.get("/events", response_class=HTMLResponse)
+def events_page(request: Request, user: User | None = Depends(optional_user)):
+    if user is None:
+        return RedirectResponse("/login", 303)
+    return templates.TemplateResponse(request, "events.html", {"user": user})
+
+
 @router.get("/recordings", response_class=HTMLResponse)
 def recordings_page(request: Request, user: User | None = Depends(optional_user)):
     if user is None:

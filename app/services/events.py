@@ -6,7 +6,9 @@ from app.models import Event
 KINDS = ("motion_start", "motion_end", "camera_offline", "camera_online", "storage_error", "storage_ok")
 
 
-def emit(db: Session, kind: str, camera_id: int | None = None, detail: str | None = None) -> None:
+def emit(db: Session, kind: str, camera_id: int | None = None, detail: str | None = None) -> Event:
     """Adds an event to the session; the caller commits."""
     assert kind in KINDS, kind
-    db.add(Event(kind=kind, camera_id=camera_id, detail=detail))
+    ev = Event(kind=kind, camera_id=camera_id, detail=detail)
+    db.add(ev)
+    return ev

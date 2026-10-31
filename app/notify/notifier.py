@@ -173,8 +173,10 @@ async def process_once(tz: ZoneInfo) -> None:
             db.commit()
 
 
-def prune_events(days: int = EVENT_KEEP_DAYS) -> None:
+def prune_events() -> None:
     with SessionLocal() as db:
+        st = db.get(NotifySettings, 1)
+        days = st.events_keep_days if st else EVENT_KEEP_DAYS
         db.execute(delete(Event).where(Event.ts < datetime.now(timezone.utc) - timedelta(days=days)))
         db.commit()
 

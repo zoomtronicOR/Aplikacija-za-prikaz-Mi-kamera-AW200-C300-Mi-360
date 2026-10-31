@@ -12,11 +12,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+import httpx
+from sqlalchemy import select, update
 
 from app.core.config import get_settings
 from app.core.db import SessionLocal
-from app.models import Camera, RecordingSettings, RecordingStorage
+from app.models import Camera, Event, NotifySettings, RecordingSettings, RecordingStorage
 from app.recorder.ai import AiWorker
 from app.recorder.motion import MotionDetector, MotionOptions, mask_str
 from app.recorder.schedule import in_window
@@ -66,6 +67,21 @@ def sync_detector(detectors: dict[str, MotionDetector], cam: Camera, rs: Recordi
     return det.drain()
 
 
+def attach_thumb(event_id: int, stream: str) -> None:
+    """Stores a picture of the moment with a motion event (for the event archive)."""
+    s = get_settings()
+    try:
+        r = httpx.get(f"{s.go2rtc_url}/api/frame.jpeg", params={"src": stream},
+                      auth=(s.go2rtc_user, s.go2rtc_password), timeout=20)
+        if r.status_code != 200 or not r.content:
+            return
+        with SessionLocal() as db:
+            db.execute(update(Event).where(Event.id == event_id).values(thumb=r.content))
+            db.commit()
+    except Exception:
+        log.warning("event %s: thumbnail failed", event_id, exc_info=True)
+
+
 def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
     s = get_settings()
     ai = AiWorker(s.ai_model_path)  # shared by all cameras; loads the model on first use
@@ -88,6 +104,7 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
 
                 now_local = datetime.fromtimestamp(now, tz)
                 active = set()
+                need_thumb: list[tuple[Event, str]] = []
                 for cam in cams:
                     rs = settings[cam.id]
                     w = workers.get(cam.slug)
@@ -105,8 +122,10 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                     if moving != motion_on.get(cam.slug, False):
                         # the AI's label (e.g. "osoba 87%") rides along so notifications can say what moved
                         label = det.ai_label if moving and det and det.ai_label_at and now - det.ai_label_at < 30 else None
-                        events.emit(db, "motion_start" if moving else "motion_end", cam.id, label)
+                        ev = events.emit(db, "motion_start" if moving else "motion_end", cam.id, label)
                         motion_on[cam.slug] = moving
+                        if moving:
+                            need_thumb.append((ev, cam.sd_stream or cam.slug))
                     if det and det.ai_label_at and (rs.ai_last_at is None or det.ai_label_at > rs.ai_last_at.timestamp()):
                         rs.ai_last, rs.ai_last_at = det.ai_label, datetime.fromtimestamp(det.ai_label_at, timezone.utc)
                     # "recording" for the UI: a standing reason, or motion within its post-roll
@@ -124,6 +143,10 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                 if now - last_status_at > STATUS_EVERY_S:
                     last_status_at = now
                 db.commit()
+                ns = db.get(NotifySettings, 1)
+                if need_thumb and (ns is None or ns.event_thumbs):
+                    for ev, stream in need_thumb:
+                        threading.Thread(target=attach_thumb, args=(ev.id, stream), daemon=True).start()
 
             for slug in set(workers) - active:  # disabled or deleted cameras
                 workers.pop(slug).shutdown()

@@ -20,6 +20,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
   - pregled: samo prikaz.
 
   Lozinke su zaštićene Argon2id heširanjem. Uzastopni neuspešni pokušaji prijave privremeno se blokiraju. Prijave i izmene beleže se u audit log.
+- **Arhiva događaja:** traka dana po kameri i spisak događaja (pokret sa AI oznakom, nedostupnost, problemi sa snimanjem), sa slikom trenutka i dugmetom koje pušta snimak baš od tog trenutka.
 - **Noćna rezervna kopija** baze i konfiguracije.
 
 ## Podržane kamere

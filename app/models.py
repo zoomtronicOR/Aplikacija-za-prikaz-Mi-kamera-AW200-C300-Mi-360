@@ -1,6 +1,7 @@
 from datetime import datetime, time
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, Time, func
+from sqlalchemy import (BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, Time,
+                        func)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -148,6 +149,7 @@ class Event(Base):
     kind: Mapped[str] = mapped_column(String(32))
     detail: Mapped[str | None] = mapped_column(Text)
     processed: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    thumb: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)  # JPEG, loaded only when asked
 
 
 class NotifyChannel(Base):
@@ -176,6 +178,9 @@ class NotifySettings(Base):
     quiet_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     quiet_start: Mapped[time | None] = mapped_column(Time)
     quiet_end: Mapped[time | None] = mapped_column(Time)
+    # event archive
+    event_thumbs: Mapped[bool] = mapped_column(Boolean, default=True)
+    events_keep_days: Mapped[int] = mapped_column(Integer, default=30)
 
 
 class AuditLog(Base):

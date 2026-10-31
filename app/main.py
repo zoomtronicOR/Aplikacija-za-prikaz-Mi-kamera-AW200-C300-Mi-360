@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.api import cameras, notify, pages, recordings, stream, xiaomi
+from app.api import cameras, events, notify, pages, recordings, stream, xiaomi
 from app.notify.notifier import mqtt, notifier_loop
 from app.services.monitor import monitor_loop
 
@@ -29,4 +29,5 @@ app.include_router(cameras.router)
 app.include_router(recordings.router)
 app.include_router(xiaomi.router)
 app.include_router(notify.router)
+app.include_router(events.router)
 app.include_router(stream.router)

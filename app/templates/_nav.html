@@ -3,6 +3,7 @@
     <span class="navbar-brand mb-0 h1 fs-5 me-2">Kamere</span>
     {% set p = request.url.path %}
     <a href="/" class="btn btn-sm {{ 'btn-secondary' if p == '/' else 'btn-outline-secondary' }}">Uživo</a>
+    <a href="/events" class="btn btn-sm {{ 'btn-secondary' if p == '/events' else 'btn-outline-secondary' }}">Događaji</a>
     <a href="/recordings" class="btn btn-sm {{ 'btn-secondary' if p == '/recordings' else 'btn-outline-secondary' }}">Snimci</a>
     {% if user.role == "admin" %}
     <a href="/admin/cameras" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/cameras' else 'btn-outline-secondary' }}">Kamere</a>

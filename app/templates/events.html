@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Događaji{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+
+<main class="container-lg p-3" data-role="{{ user.role }}">
+  <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div><label class="form-label small mb-0" for="f-day">Dan</label>
+      <input id="f-day" type="date" class="form-control form-control-sm"></div>
+    <div><label class="form-label small mb-0" for="f-cam">Kamera</label>
+      <select id="f-cam" class="form-select form-select-sm"><option value="">Sve kamere</option></select></div>
+    <div><label class="form-label small mb-0" for="f-kind">Vrsta</label>
+      <select id="f-kind" class="form-select form-select-sm">
+        <option value="all">Sve</option><option value="motion">Pokret</option>
+        <option value="camera">Dostupnost kamera</option><option value="storage">Snimanje (skladište)</option>
+      </select></div>
+    <span id="count" class="small text-body-secondary ms-auto"></span>
+  </div>
+
+  <section class="card card-body mb-3">
+    <div class="d-flex justify-content-between small text-body-secondary mb-1"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+    <div id="timeline" class="d-grid gap-1"></div>
+    <div class="small text-body-secondary mt-1">
+      <span class="tl-legend tl-motion"></span> pokret
+      <span class="tl-legend tl-down ms-2"></span> kamera nedostupna — klik na oznaku otvara događaj
+    </div>
+  </section>
+
+  <div id="list" class="d-grid gap-2"></div>
+  <button id="more" class="btn btn-sm btn-outline-secondary mt-2 d-none">Učitaj još</button>
+
+  <details id="settings" class="mt-4 d-none">
+    <summary class="small">Podešavanja arhive</summary>
+    <form id="settings-form" class="card card-body gap-2 mt-2" style="max-width: 520px">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="s-thumbs">
+        <label class="form-check-label" for="s-thumbs">Čuvaj sliku trenutka uz događaj pokreta (~20–40 KB po događaju)</label>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="small" for="s-days">Čuvaj događaje</label>
+        <input id="s-days" type="number" min="1" max="365" class="form-control form-control-sm" style="width: 5rem">
+        <span class="small">dana</span>
+      </div>
+      <div><button class="btn btn-sm btn-primary">Sačuvaj</button> <span id="s-msg" class="small"></span></div>
+    </form>
+  </details>
+</main>
+<script type="module" src="/static/events.js"></script>
+{% endblock %}
