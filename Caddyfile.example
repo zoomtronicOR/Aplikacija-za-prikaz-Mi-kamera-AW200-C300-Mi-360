@@ -14,6 +14,12 @@ https://192.168.1.10, https://camera-server {
 	reverse_proxy 127.0.0.1:8080
 }
 
+# Optional, with Tailscale on the server: a publicly trusted certificate for the tailnet name
+# (enable HTTPS Certificates in the Tailscale admin console). No root certificate to install.
+# https://camera-server.tailXXXX.ts.net {
+# 	reverse_proxy 127.0.0.1:8080
+# }
+
 http://192.168.1.10, http://camera-server {
 	# the root certificate, for installing on phones and computers
 	handle /ca.crt {

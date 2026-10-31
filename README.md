@@ -131,6 +131,10 @@ Aplikacija je tada na `https://<server>`, a http se preusmerava na https. Caddy 
 | iPhone / iPad | Otvori `http://<server>/ca.crt` u Safariju → Podešavanja → *Profil preuzet* → Instaliraj, zatim Opšte → Informacije → **Podešavanja poverenja sertifikata** → uključi za „Caddy Local Authority” |
 | macOS | Dvoklik na `ca.crt` → Keychain *System* → otvori sertifikat → Trust → **Always Trust** |
 
+**Pristup spolja preko Tailscale-a:** instaliraj Tailscale u CT (unprivileged LXC traži tun uređaj, pa na Proxmox hostu u `/etc/pve/lxc/<CTID>.conf` dodaj `lxc.cgroup2.devices.allow: c 10:200 rwm` i `lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file`). Zatim `tailscale up --accept-routes --hostname=<ime>` i, u Caddyfile-u, blok za `https://<ime>.<tailnet>.ts.net` (primer je u `Caddyfile.example`). Uz uključene HTTPS sertifikate u Tailscale admin panelu, Caddy dobija pravi sertifikat, pa spolja nije potrebno instalirati korenski sertifikat.
+
+Kamere na drugoj lokaciji, iza Tailscale subnet routera sa uključenim SNAT-om, odgovaraju na kontrole, ali **video ne prolazi**: Xiaomi CS2 protokol odgovara sa drugog UDP porta, a NAT takav odgovor odbacuje. Potrebno je isključiti SNAT na subnet routeru i rutirati 100.64.0.0/10 nazad do njega.
+
 Sertifikaciono telo se čuva u Docker volumenu `caddy_data` i ulazi u noćnu rezervnu kopiju; ako se izgubi, uređaji moraju da instaliraju novi korenski sertifikat.
 
 ### 5. Dodavanje Xiaomi kamera

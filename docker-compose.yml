@@ -59,6 +59,8 @@ services:
       - ./config/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      # tailscaled's socket: Caddy gets publicly trusted certificates for *.ts.net names from it
+      - /var/run/tailscale:/var/run/tailscale
     depends_on:
       - app
 
