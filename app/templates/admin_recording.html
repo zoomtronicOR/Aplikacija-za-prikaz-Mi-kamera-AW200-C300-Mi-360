@@ -6,7 +6,9 @@
 <main class="container-lg p-3">
   <h1 class="h5">Gde se čuvaju snimci</h1>
   <div id="storage-status" class="small mb-2"></div>
-  <form id="storage" class="card card-body gap-2 mb-4" style="max-width: 720px" autocomplete="off">
+  <div class="row g-3 mb-4">
+  <div class="col-lg-7">
+  <form id="storage" class="card card-body gap-2 h-100" autocomplete="off">
     <div class="small text-body-secondary">Windows deljeni folder ili NAS (SMB). Na Windows-u: desni klik na folder → Properties → Sharing → Advanced Sharing.</div>
     <div class="row g-2">
       <div class="col-sm-5"><label class="form-label small mb-0" for="s-host">Računar (IP adresa ili ime)</label>
@@ -34,6 +36,21 @@
       <span id="storage-msg" class="small"></span>
     </div>
   </form>
+  </div>
+  <div class="col-lg-5">
+    <section class="card card-body small h-100">
+      <h2 class="h6">Kako podesiti osetljivost pokreta</h2>
+      <ul class="mb-2 ps-3">
+        <li><b>Veća osetljivost</b> = hvata manje i udaljenije pokrete, ali pravi više snimaka (i lažnih: lišće, kiša, senke, insekti noću).</li>
+        <li><b>Manja osetljivost</b> = samo veći pokreti blizu kamere, manje snimaka.</li>
+        <li>Kreni od srednje vrednosti. Pomeraj klizač u malim koracima i posmatraj <b>nivo pokreta uživo</b> u editoru zona.</li>
+        <li>Ako ima lažnih snimaka: prvo <b>maskiraj zone</b> (drveće, ulica, nebo), pa tek onda smanji osetljivost.</li>
+        <li>Ako propušta ljude: uključi <b>AI proveru (osoba)</b>, pa slobodno povećaj osetljivost — AI odbacuje lišće i senke.</li>
+        <li>Prvih 2–3 minuta posle promene detektor uči pozadinu, pa može napraviti par lažnih snimaka.</li>
+      </ul>
+    </section>
+  </div>
+  </div>
 
   <h2 class="h5">Snimanje po kameri</h2>
   <p class="small text-body-secondary mb-2">Ručno snimanje (dugme REC na kartici kamere) radi uvek, nezavisno od izabranog načina.
