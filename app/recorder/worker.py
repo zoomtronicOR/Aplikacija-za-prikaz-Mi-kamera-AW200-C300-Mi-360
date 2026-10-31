@@ -91,11 +91,14 @@ class CameraWorker:
         self.seg_dir.mkdir(parents=True, exist_ok=True)
         cmd = [
             "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
-            # a camera nobody watches is dialed fresh by go2rtc: give ffmpeg time to see the codec
-            # parameters, and repair the shaky first timestamps instead of failing with EINVAL
-            "-analyzeduration", "5000000", "-probesize", "5000000", "-fflags", "+genpts+discardcorrupt",
+            # A camera nobody watches is dialed fresh by go2rtc, and its first video packets come
+            # without timestamps: with a plain copy the Matroska muxer fails with EINVAL ("Can't write
+            # packet with unknown timestamp"). Stamping packets on arrival fixes that; aresample
+            # smooths the audio, which arrives in bursts.
+            "-use_wallclock_as_timestamps", "1", "-analyzeduration", "5000000", "-probesize", "5000000",
             "-rtsp_transport", "tcp", "-timeout", "10000000", "-i", self.rtsp_url,
-            "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy", "-c:a", "aac", "-b:a", "64k",
+            "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy",
+            "-af", "aresample=async=1000", "-c:a", "aac", "-b:a", "64k",
             "-avoid_negative_ts", "make_zero",
             "-f", "segment", "-segment_time", str(SEG_SECONDS), "-segment_format", "matroska",
             "-reset_timestamps", "1", "-strftime", "1",

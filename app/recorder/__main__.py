@@ -27,6 +27,7 @@ log = logging.getLogger("recorder")
 LOOP_S = 2
 UPLOAD_EVERY_S = 5
 RETENTION_EVERY_S = 600
+CHECK_EVERY_S = 300
 STATUS_EVERY_S = 30
 
 stopping = threading.Event()
@@ -93,6 +94,8 @@ def upload_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
     clip_dir = buffer_dir / "clips"
     last_share = None
     last_retention = 0.0
+    # Real write test, so the status never says "OK" just because there was nothing to upload.
+    checked_at, check_error = 0.0, None
     while not stopping.is_set():
         try:
             with SessionLocal() as db:
@@ -107,13 +110,26 @@ def upload_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                 except ValueError as e:
                     share, error, ok = None, str(e), False
                 if share != last_share:
-                    smb.reset()  # credentials or target changed
-                    last_share = share
+                    try:
+                        smb.reset()  # credentials or target changed
+                    except Exception:
+                        log.debug("closing old SMB connections failed", exc_info=True)
+                    last_share, checked_at = share, 0.0
                 if share is None:
                     if error is None and any(clip_dir.glob("*")):
                         ok, error = False, "skladište za snimke nije podešeno"
                 else:
+                    if time.time() - checked_at > CHECK_EVERY_S:
+                        try:
+                            smb.check(share)
+                            check_error = None
+                        except smb.StorageError as e:
+                            check_error = str(e)
+                            log.warning("storage check: %s", e)
+                        checked_at = time.time()
                     try:
+                        if check_error:
+                            raise smb.StorageError(check_error)
                         upload_pending(db, share, clip_dir, tz)
                         if time.time() - last_retention > RETENTION_EVERY_S:
                             apply_retention(db, share)
@@ -121,7 +137,9 @@ def upload_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                         ok = True
                     except smb.StorageError as e:
                         ok, error = False, str(e)
-                        log.warning("storage: %s", e)
+                        if not check_error:
+                            log.warning("storage: %s", e)
+                            checked_at = 0.0  # re-check on the next pass, so recovery shows up quickly
                 dropped = enforce_buffer_cap(clip_dir, int(st.buffer_max_gb * 1024 ** 3))
                 if dropped:
                     error = (error + "; " if error else "") + f"lokalni bafer pun, obrisano {len(dropped)} snimaka"

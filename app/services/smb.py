@@ -48,6 +48,10 @@ def _explain(e: Exception) -> str:
     text = str(e)
     if "STATUS_LOGON_FAILURE" in text:
         return "pogrešno korisničko ime ili lozinka"
+    if "authenticated as a guest" in text:
+        # Windows with the Guest account enabled falls back to guest instead of rejecting the login
+        return ("Windows nije prihvatio korisnika i lozinku (prijava kao gost). Za Microsoft nalog unesi "
+                "njegov email i lozinku (ne PIN), ili napravi lokalnog korisnika za snimke")
     if "STATUS_BAD_NETWORK_NAME" in text or "STATUS_NOT_FOUND" in text:
         return "deljeni folder ne postoji (proveri ime deljenja)"
     if "STATUS_ACCESS_DENIED" in text:
