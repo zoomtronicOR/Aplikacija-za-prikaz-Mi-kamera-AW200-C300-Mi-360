@@ -51,8 +51,10 @@ async def stream_ws(ws: WebSocket, src: str, quality: str = "hd"):
     await ws.accept()
     upstream_url = get_settings().go2rtc_url.replace("http", "ws", 1) + f"/api/ws?src={go2rtc_stream(cam, quality)}"
     try:
+        # No keepalive pings to go2rtc (localhost): while send_bytes waits on a slow browser the
+        # upstream isn't read, the pong goes unnoticed and websockets drops a healthy stream.
         async with websockets.connect(upstream_url, additional_headers={"Authorization": auth_header()},
-                                      max_size=None) as upstream:
+                                      max_size=None, ping_interval=None) as upstream:
             async def browser_to_go2rtc():
                 while True:
                     msg = await ws.receive()
@@ -68,9 +70,11 @@ async def stream_ws(ws: WebSocket, src: str, quality: str = "hd"):
                         await ws.send_text(msg)
 
             tasks = [asyncio.create_task(browser_to_go2rtc()), asyncio.create_task(go2rtc_to_browser())]
-            _, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            for t in pending:
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for t in tasks:
                 t.cancel()
+            # retrieve every outcome: a closed connection on either side is the normal way a view ends
+            await asyncio.gather(*tasks, return_exceptions=True)
     except (WebSocketDisconnect, websockets.ConnectionClosed, OSError):
         pass
     finally:
