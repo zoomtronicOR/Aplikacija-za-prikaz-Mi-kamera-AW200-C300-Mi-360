@@ -52,6 +52,18 @@ def delete_session(db: Session, token: str) -> None:
     db.commit()
 
 
+def delete_user_sessions(db: Session, user_id: int, keep_token: str | None = None) -> None:
+    """Logs a user out everywhere (optionally except the current session)."""
+    q = delete(UserSession).where(UserSession.user_id == user_id)
+    if keep_token:
+        q = q.where(UserSession.token_hash != _token_hash(keep_token))
+    db.execute(q)
+    db.commit()
+
+
+MIN_PASSWORD_LEN = 12
+
+
 def user_from_token(db: Session, token: str | None) -> User | None:
     if not token:
         return None

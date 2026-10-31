@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Korisnici{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+
+<main class="container-lg p-3">
+  <h1 class="h5">Korisnici</h1>
+  <p class="small text-body-secondary">Uloge: <b>administrator</b> – sve, uključujući podešavanja i korisnike;
+    <b>korisnik</b> – prikaz, kontrole kamera, REC, preuzimanje snimaka; <b>pregled</b> – samo prikaz, događaji i puštanje snimaka.</p>
+  <div class="table-responsive mb-3">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Korisnik</th><th>Uloga</th><th>Aktivan</th><th>Poslednja prijava</th><th></th></tr></thead>
+      <tbody id="users"></tbody>
+    </table>
+  </div>
+
+  <h2 class="h6">Dodaj korisnika</h2>
+  <form id="add" class="card card-body gap-2 mb-4" style="max-width: 720px" autocomplete="off">
+    <div class="row g-2">
+      <div class="col-sm-4"><label class="form-label small mb-0" for="a-name">Korisničko ime</label>
+        <input class="form-control form-control-sm" id="a-name" required pattern="[A-Za-z0-9._\-]{3,64}"
+               title="3–64 znaka: slova bez kvačica, brojevi, tačka, crtica, donja crta" autocomplete="off"></div>
+      <div class="col-sm-3"><label class="form-label small mb-0" for="a-role">Uloga</label>
+        <select class="form-select form-select-sm" id="a-role"></select></div>
+      <div class="col-sm-5"><label class="form-label small mb-0" for="a-pw">Početna lozinka (min. 12 znakova)</label>
+        <div class="input-group input-group-sm">
+          <input class="form-control" id="a-pw" type="text" minlength="12" required autocomplete="new-password">
+          <button type="button" class="btn btn-outline-secondary" id="a-gen" title="Napravi nasumičnu lozinku">🎲</button>
+        </div></div>
+    </div>
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" role="switch" id="a-must" checked>
+      <label class="form-check-label small" for="a-must">Traži da korisnik postavi svoju lozinku pri prvoj prijavi</label>
+    </div>
+    <div><button class="btn btn-sm btn-primary">Dodaj</button> <span id="a-msg" class="small"></span></div>
+  </form>
+
+  <h2 class="h6">Dnevnik (audit log)</h2>
+  <div class="d-flex flex-wrap gap-2 align-items-end mb-2">
+    <div><label class="form-label small mb-0" for="l-user">Korisnik</label>
+      <select class="form-select form-select-sm" id="l-user"><option value="">Svi</option></select></div>
+    <div><label class="form-label small mb-0" for="l-action">Vrsta</label>
+      <select class="form-select form-select-sm" id="l-action"><option value="">Sve</option></select></div>
+    <span id="l-count" class="small text-body-secondary ms-auto"></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm small align-middle">
+      <thead><tr><th>Vreme</th><th>Korisnik</th><th>Radnja</th><th>Cilj</th><th>Detalji</th><th>IP</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table>
+  </div>
+  <button id="l-more" class="btn btn-sm btn-outline-secondary d-none">Učitaj još</button>
+</main>
+<script type="module" src="/static/admin_users.js"></script>
+{% endblock %}

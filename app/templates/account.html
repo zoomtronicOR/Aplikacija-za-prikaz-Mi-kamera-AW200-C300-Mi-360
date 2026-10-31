@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Moj nalog{% endblock %}
+{% block body %}
+{% if not user.must_change_password %}{% include "_nav.html" %}{% endif %}
+
+<main class="container p-3" style="max-width: 520px">
+  <h1 class="h5">Moj nalog</h1>
+  <p class="small text-body-secondary mb-3">{{ user.username }} · uloga: {{ {"admin": "administrator", "user": "korisnik", "viewer": "pregled"}[user.role] }}</p>
+  {% if user.must_change_password %}
+  <div class="alert alert-warning py-2">Administrator ti je zadao početnu lozinku. Pre nastavka postavi svoju.</div>
+  {% endif %}
+  <form id="pw" class="card card-body gap-2" autocomplete="off">
+    <h2 class="h6 mb-0">Promena lozinke</h2>
+    <div><label class="form-label small mb-0" for="cur">Trenutna lozinka</label>
+      <input class="form-control" id="cur" type="password" autocomplete="current-password" required></div>
+    <div><label class="form-label small mb-0" for="new">Nova lozinka (najmanje 12 znakova)</label>
+      <input class="form-control" id="new" type="password" autocomplete="new-password" minlength="12" required></div>
+    <div><label class="form-label small mb-0" for="new2">Ponovi novu lozinku</label>
+      <input class="form-control" id="new2" type="password" autocomplete="new-password" minlength="12" required></div>
+    <div class="small text-body-secondary">Posle promene odjavljuješ se sa svih drugih uređaja.</div>
+    <div><button class="btn btn-primary btn-sm">Sačuvaj lozinku</button> <span id="msg" class="small"></span></div>
+  </form>
+  {% if user.must_change_password %}
+  <form method="post" action="/logout" class="mt-3"><button class="btn btn-sm btn-outline-secondary">Odjava</button></form>
+  {% endif %}
+</main>
+<script type="module" src="/static/account.js"></script>
+{% endblock %}

@@ -19,6 +19,8 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
   - korisnik: prikaz i kontrole;
   - pregled: samo prikaz.
 
+  Administrator dodaje i menja korisnike u aplikaciji (stranica **Korisnici**), uz početnu lozinku i obaveznu promenu pri prvoj prijavi. Na istoj stranici je i **dnevnik** (audit log) prijava i izmena. Svako menja svoju lozinku na stranici **Moj nalog**.
+
   Lozinke su zaštićene Argon2id heširanjem. Uzastopni neuspešni pokušaji prijave privremeno se blokiraju. Prijave i izmene beleže se u audit log.
 - **Arhiva događaja:** traka dana po kameri i spisak događaja (pokret sa AI oznakom, nedostupnost, problemi sa snimanjem), sa slikom trenutka i dugmetom koje pušta snimak baš od tog trenutka.
 - **Noćna rezervna kopija** baze i konfiguracije.

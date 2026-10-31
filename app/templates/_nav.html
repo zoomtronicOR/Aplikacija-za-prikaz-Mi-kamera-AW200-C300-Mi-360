@@ -9,10 +9,11 @@
     <a href="/admin/cameras" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/cameras' else 'btn-outline-secondary' }}">Kamere</a>
     <a href="/admin/recording" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/recording' else 'btn-outline-secondary' }}">Snimanje</a>
     <a href="/admin/notify" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/notify' else 'btn-outline-secondary' }}">Obaveštenja</a>
+    <a href="/admin/users" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/users' else 'btn-outline-secondary' }}">Korisnici</a>
     {% endif %}
   </div>
   <form method="post" action="/logout" class="d-flex align-items-center gap-2">
-    <span class="text-body-secondary small">{{ user.username }}</span>
+    <a href="/account" class="small {{ 'link-light' if p == '/account' else 'link-secondary' }}" title="Moj nalog">{{ user.username }}</a>
     <button class="btn btn-sm btn-outline-secondary">Odjava</button>
   </form>
 </nav>
