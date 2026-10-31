@@ -17,6 +17,18 @@
         <h2 class="h6">Servisi</h2>
         <table class="table table-sm align-middle mb-0"><tbody id="services"></tbody></table>
       </section>
+      <section class="card card-body small">
+        <h2 class="h6">Kopiranje sistema na novu lokaciju</h2>
+        <ol class="mb-2 ps-3">
+          <li>Na drugom Proxmox-u vrati ovaj CT iz rezervne kopije, sa <b>novom MAC adresom</b>.</li>
+          <li>U konzoli kopije pokreni:<br><code>bash /opt/xiaomi-cam-hub/scripts/prepare_new_site.sh</code></li>
+          <li>Skripta pokaže šta će obrisati, traži potvrdu <code>DA</code>, pa pita za novu IP adresu i kratko ime servera.</li>
+          <li>Prati korake koje ispiše na kraju: Tailscale, dodavanje kamera, skladište, MQTT, backup.</li>
+        </ol>
+        <div class="text-body-secondary">Briše kamere, tokene i streamove, spisak snimaka, događaje, prijave, skladište, MQTT i Tailscale identitet.
+          Zadržava korisnike, Xiaomi prijavu, AI model, pravila obaveštenja i HTTPS sertifikat.</div>
+        <div class="text-danger mt-1">Nikad je ne pokreći na originalu.</div>
+      </section>
     </div>
     <div class="col-lg-5 d-grid gap-3 align-content-start">
       <section class="card card-body">
