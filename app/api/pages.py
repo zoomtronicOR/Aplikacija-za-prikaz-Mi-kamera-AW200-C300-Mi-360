@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,6 +15,7 @@ from app.models import User
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
+STATIC = Path(__file__).parent.parent / "static"
 
 
 def _redirect(to: str) -> HTTPException:
@@ -61,6 +62,12 @@ for path, template, is_admin in (
 @router.get("/camera/{slug}", response_class=HTMLResponse)
 def camera_page(slug: str, request: Request, user: User = Depends(page_user)):
     return templates.TemplateResponse(request, "camera.html", {"user": user, "slug": slug})
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    # browsers ask for /favicon.ico on their own, before any page links it
+    return FileResponse(STATIC / "favicon.ico", media_type="image/x-icon", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @router.get("/login", response_class=HTMLResponse)
