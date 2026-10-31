@@ -121,8 +121,14 @@ export function mountCamera(root, cam, opts = {}) {
     // a fresh element per quality switch: simplest way to drop the old connection cleanly
     player?.remove();
     player = document.createElement('video-stream');
-    // mjpeg last: lets MJPEG cameras (ESP32-CAM) play without server-side transcoding
-    player.mode = 'webrtc,mse,hls,mjpeg';
+    if (cam.talk) {
+      // two-way audio: the browser's microphone goes to the camera's speaker over WebRTC only
+      player.mode = 'webrtc';
+      player.media = 'video,audio,microphone';
+    } else {
+      // mjpeg last: lets MJPEG cameras (ESP32-CAM) play without server-side transcoding
+      player.mode = 'webrtc,mse,hls,mjpeg';
+    }
     player.src = new URL(`/api/ws?src=${encodeURIComponent(cam.slug)}&quality=${cam.quality}`, location.href);
     view.prepend(player);
   };

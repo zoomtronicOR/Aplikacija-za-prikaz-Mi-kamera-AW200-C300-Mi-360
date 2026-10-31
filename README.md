@@ -109,7 +109,27 @@ docker compose up -d --build
 docker compose exec app python -m app.cli create-user <ime> admin      # lozinka se unosi interaktivno, min. 12 znakova
 ```
 
-Aplikacija je na `http://<server>:8080`.
+Aplikacija je na `http://<server>:8080` dok ne uključiš HTTPS (sledeći korak).
+
+### 5a. HTTPS (preporučeno; potrebno za govor kroz kameru)
+
+```bash
+cp Caddyfile.example config/Caddyfile        # zameni 192.168.1.10 i camera-server svojom IP adresom i imenom servera
+echo "APP_HOST=127.0.0.1" >> .env              # aplikacija tada sluša samo za Caddy
+sed -i "s/^COOKIE_SECURE=false/COOKIE_SECURE=true/" .env
+docker compose up -d
+```
+
+Aplikacija je tada na `https://<server>`, a http se preusmerava na https. Caddy izdaje sertifikat iz svog lokalnog sertifikacionog tela. Da browser ne bi prikazivao upozorenje (i da bi mikrofon radio), na svaki uređaj jednom instaliraj korenski sertifikat sa `http://<server>/ca.crt`:
+
+| Uređaj | Postupak |
+|---|---|
+| Windows | Otvori `ca.crt` → *Install Certificate* → *Local Machine* → *Place all certificates in…* → **Trusted Root Certification Authorities**, pa restartuj browser |
+| Android | Podešavanja → Bezbednost → Šifrovanje i akreditivi → *Instaliraj sertifikat* → **CA sertifikat** → izaberi preuzeti `ca.crt` |
+| iPhone / iPad | Otvori `http://<server>/ca.crt` u Safariju → Podešavanja → *Profil preuzet* → Instaliraj, zatim Opšte → Informacije → **Podešavanja poverenja sertifikata** → uključi za „Caddy Local Authority” |
+| macOS | Dvoklik na `ca.crt` → Keychain *System* → otvori sertifikat → Trust → **Always Trust** |
+
+Sertifikaciono telo se čuva u Docker volumenu `caddy_data` i ulazi u noćnu rezervnu kopiju; ako se izgubi, uređaji moraju da instaliraju novi korenski sertifikat.
 
 ### 5. Dodavanje Xiaomi kamera
 
@@ -267,16 +287,16 @@ Migracije baze (Alembic) pokreću se same pri startu aplikacije.
 
 ## Bezbednost
 
-- Aplikacija je namenjena **lokalnoj mreži**. Za pristup spolja koristi VPN (npr. Tailscale) ili HTTPS reverse proxy sa prijavom. Port 8080 nemoj izlagati internetu.
+- Aplikacija je namenjena **lokalnoj mreži**. Za pristup spolja koristi VPN (npr. Tailscale). Portove 80/443/8080 nemoj izlagati internetu.
 - go2rtc API (1984), RTSP (8554) i baza (5432) slušaju samo na `127.0.0.1`. Na mreži su otvoreni samo aplikacija (8080) i WebRTC video (8555).
 - Ne šalji u git i ne deli fajlove `.env`, `config/go2rtc.yaml` (sadrži Xiaomi prijavu) i `config/miio_tokens.json`.
-- Kolačić sesije ima `secure` zaštitu tek kad se uključi HTTPS (`COOKIE_SECURE=true` u `.env`).
+- Uz HTTPS (korak 5a) aplikacija sluša samo lokalno (`APP_HOST=127.0.0.1`), a kolačić sesije ima `Secure` zaštitu (`COOKIE_SECURE=true`).
 
 ## Poznata ograničenja
 
 - Okretanje radi samo dok je kamera otvorena na ekranu, jer komanda ide kroz aktivnu video vezu.
 - go2rtc odgovara „uspešno” i kada kamera nema motor, pa odgovor ne dokazuje pokret.
-- Govor ka kameri (dvosmerni zvuk) zahteva HTTPS i još nije uključen.
+- Govor kroz kameru (dugme **🎤 Govori** na stranici kamere, Xiaomi kamere) radi samo preko HTTPS-a sa instaliranim korenskim sertifikatom. Kod Mi 360 (zvuk PCMA) nije potvrđen.
 - Ako kameru niko ne gleda, snimak počinje 3–8 sekundi posle pokretanja, dok se ne uspostavi veza sa kamerom.
 - Snimci sa Xiaomi kamera su u formatu H.265. Chrome i Edge ih puštaju na većini računara, ali ne na svim. U suprotnom preuzmi snimak i otvori ga u VLC-u.
 - Istovremeno gledanje iste Xiaomi kamere kroz Mi Home aplikaciju može izazvati prekide.

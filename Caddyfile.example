@@ -1,0 +1,28 @@
+# Copy to config/Caddyfile and replace the addresses with the server's IP and hostname.
+# Caddy issues the HTTPS certificate from its own local CA. Install that CA's root certificate on your
+# devices (served at http://<server>/ca.crt) so browsers trust the site. The microphone (talk
+# through a camera) only works over trusted HTTPS.
+{
+	local_certs
+	skip_install_trust
+	# browsers send no SNI when the address is an IP; serve the IP certificate then
+	default_sni 192.168.1.10
+}
+
+https://192.168.1.10, https://camera-server {
+	tls internal
+	reverse_proxy 127.0.0.1:8080
+}
+
+http://192.168.1.10, http://camera-server {
+	# the root certificate, for installing on phones and computers
+	handle /ca.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		file_server
+	}
+	handle {
+		redir https://{host}{uri} permanent
+	}
+}

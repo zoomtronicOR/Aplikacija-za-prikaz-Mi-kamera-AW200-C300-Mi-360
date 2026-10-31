@@ -20,4 +20,5 @@ COPY app app
 RUN useradd --system --no-create-home --uid 10001 camhub && chmod -R a+rX /srv
 USER camhub
 
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=127.0.0.1"]
+# APP_HOST=127.0.0.1 once Caddy serves HTTPS in front of the app
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host ${APP_HOST:-0.0.0.0} --port 8080 --proxy-headers --forwarded-allow-ips=127.0.0.1"]

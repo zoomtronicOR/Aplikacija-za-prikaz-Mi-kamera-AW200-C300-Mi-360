@@ -13,7 +13,7 @@ if (!cam) {
 }
 cam.role_admin = 'did' in cam;
 document.title = cam.name;
-const { ptz } = mountCamera(root, cam, { controlsOpen: true });
+const { ptz, play } = mountCamera(root, cam, { controlsOpen: true });
 
 // snapshot of the stream currently watched (HD or SD)
 const snap = root.querySelector('.btn-snap');
@@ -21,6 +21,29 @@ if (!cam.can_control) snap.remove();
 else snap.addEventListener('click', () => {
   snap.href = `/api/cameras/${slug}/snapshot?quality=${cam.quality}&download=1`;
 });
+
+// talk through the camera (Xiaomi cameras have an audio backchannel). Browsers only give the
+// microphone to trusted HTTPS pages, so explain instead of failing silently.
+const talk = root.querySelector('.btn-talk');
+const talkMsg = root.querySelector('.talk-msg');
+if (cam.kind === 'xiaomi' && cam.can_control) {
+  talk.classList.remove('d-none');
+  talk.onclick = () => {
+    if (!window.isSecureContext) {
+      talkMsg.className = 'small mt-1 talk-msg text-warning';
+      talkMsg.textContent = `Mikrofon radi samo preko HTTPS-a: otvori https://${location.hostname}${location.pathname}`;
+      return;
+    }
+    cam.talk = !cam.talk;
+    talk.textContent = cam.talk ? '🎤 Prekini' : '🎤 Govori';
+    talk.classList.toggle('btn-success', cam.talk);
+    talk.classList.toggle('btn-outline-success', !cam.talk);
+    talkMsg.className = 'small mt-1 talk-msg text-body-secondary';
+    talkMsg.textContent = cam.talk ? 'Mikrofon je uključen: browser će tražiti dozvolu, zatim se čuješ na kameri.' : '';
+    talkMsg.classList.toggle('d-none', !cam.talk);
+    play();
+  };
+}
 
 // keyboard: arrows pan/tilt while held, F toggles fullscreen
 const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };

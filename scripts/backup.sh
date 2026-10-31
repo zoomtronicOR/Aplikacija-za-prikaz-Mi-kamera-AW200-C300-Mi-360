@@ -7,7 +7,8 @@
 # Archive contents:
 #   db.dump        PostgreSQL custom-format dump (users, cameras, sessions, audit log)
 #   .env           app secrets (DB and go2rtc passwords)
-#   config/        go2rtc.yaml (Xiaomi login, stream URLs with camera passwords), miio_tokens.json
+#   config/        go2rtc.yaml (Xiaomi login, stream URLs with camera passwords), miio_tokens.json, Caddyfile
+#   caddy-pki/     Caddy's local CA (root key: keep the archive private)
 #   docker-compose.yml
 #
 # Restore:
@@ -16,6 +17,7 @@
 #   docker compose up -d postgres
 #   docker compose exec -T postgres pg_restore -U xiaomi_app -d xiaomi_cam --clean --if-exists < db.dump
 #   docker compose up -d
+#   docker compose cp caddy-pki/. caddy:/data/caddy/pki && docker compose restart caddy   (keeps the same root CA)
 # The custom go2rtc image is not in the backup; rebuild it as described in docker-compose.yml.
 set -euo pipefail
 APP_DIR=${APP_DIR:-/opt/xiaomi-cam-hub}
@@ -37,6 +39,11 @@ docker compose exec -T postgres pg_dump -U xiaomi_app -d xiaomi_cam -Fc > "$work
 cp -a .env docker-compose.yml "$work/"
 mkdir "$work/config"
 cp -a config/go2rtc.yaml config/miio_tokens.json "$work/config/"
+[ -f config/Caddyfile ] && cp -a config/Caddyfile "$work/config/"
+# Caddy's local CA: without it a rebuild makes every device trust a new root certificate
+if docker compose ps --services --status running | grep -qx caddy; then
+  docker compose cp caddy:/data/caddy/pki "$work/caddy-pki" >/dev/null
+fi
 
 out="$BACKUP_DIR/xiaomi-cam-hub-$(date +%Y%m%d-%H%M).tar.gz"
 tar czf "$out.tmp" -C "$work" .
