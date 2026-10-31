@@ -72,6 +72,10 @@ def _message(ev: Event, cam: Camera | None, tz: ZoneInfo) -> Message:
     where = f" ({cam.location})" if cam and cam.location else ""
     at = ev.ts.astimezone(tz).strftime("%H:%M:%S")
     if ev.kind == "motion_start":
+        if ev.detail:  # AI label, e.g. "osoba 87%"
+            what, _, score = ev.detail.rpartition(" ")
+            return Message(f"{what.capitalize()}: {name}", f"{what.capitalize()} ({score}) — {name}{where} u {at}",
+                           tags="walking", priority="high")
         return Message(f"Pokret: {name}", f"{name}{where} u {at}", tags="walking", priority="high")
     if ev.kind == "camera_offline":
         return Message(f"Kamera nedostupna: {name}", f"{name}{where} ne odgovara od {at}.", tags="warning")

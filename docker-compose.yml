@@ -65,6 +65,8 @@ services:
     volumes:
       # local buffer: 10 s segments and clips waiting for upload (owned by uid 10001)
       - ./data/recbuf:/recbuf
+      # object detection model for AI verification of motion (YOLOX-tiny, see README)
+      - ./data/models:/models:ro
 
 volumes:
   postgres_data:

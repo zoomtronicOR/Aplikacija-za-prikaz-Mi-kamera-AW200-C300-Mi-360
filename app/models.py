@@ -112,6 +112,14 @@ class RecordingSettings(Base):
     motion_require_group: Mapped[bool] = mapped_column(Boolean, default=True)
     motion_pre_roll: Mapped[bool] = mapped_column(Boolean, default=True)
     record_audio: Mapped[bool] = mapped_column(Boolean, default=True)
+    # AI verification of motion: off by default; each object group has its own switch
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    ai_person: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_vehicle: Mapped[bool] = mapped_column(Boolean, default=False)
+    ai_animal: Mapped[bool] = mapped_column(Boolean, default=False)
+    ai_min_score: Mapped[float] = mapped_column(Float, default=0.5)
+    ai_last: Mapped[str | None] = mapped_column(String(64))
+    ai_last_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     motion_live: Mapped[str | None] = mapped_column(String(144))
     motion_suppressed: Mapped[str | None] = mapped_column(String(144))
 

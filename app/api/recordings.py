@@ -134,10 +134,15 @@ class CameraRecIn(BaseModel):
     motion_require_group: bool = True
     motion_pre_roll: bool = True
     record_audio: bool = True
+    ai_enabled: bool = False
+    ai_person: bool = True
+    ai_vehicle: bool = False
+    ai_animal: bool = False
+    ai_min_score: float = Field(default=0.5, ge=0.25, le=0.95)
 
 
 TOGGLES = ("motion_auto_ignore", "motion_zones_enabled", "motion_noise_adapt", "motion_require_group",
-           "motion_pre_roll", "record_audio")
+           "motion_pre_roll", "record_audio", "ai_enabled", "ai_person", "ai_vehicle", "ai_animal")
 
 
 def _settings_for(db: Session, cam: Camera) -> RecordingSettings:
@@ -160,6 +165,7 @@ def rec_json(rs: RecordingSettings | None) -> dict:
         "last_motion_at": rs.last_motion_at,
         "motion_level": rs.motion_level if fresh and rs.mode == "motion" else None,
         "motion_mask": rs.motion_mask, **{t: getattr(rs, t) for t in TOGGLES},
+        "ai_min_score": rs.ai_min_score, "ai_last": rs.ai_last, "ai_last_at": rs.ai_last_at,
         "motion_live": rs.motion_live if fresh and rs.mode == "motion" else None,
         "motion_suppressed": rs.motion_suppressed if fresh and rs.mode == "motion" else None,
         # status older than 90 s means the recorder isn't running
@@ -194,6 +200,7 @@ def put_rec_settings(slug: str, body: CameraRecIn, request: Request, db: Session
     rs.motion_mask = body.motion_mask if body.motion_mask and "1" in body.motion_mask else None
     for t in TOGGLES:
         setattr(rs, t, getattr(body, t))
+    rs.ai_min_score = body.ai_min_score
     db.commit()
     audit(db, "recording_settings_set", user=user, target=slug, detail=body.model_dump_json(), ip=client_ip(request))
     return rec_json(rs)

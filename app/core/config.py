@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # recorder
     go2rtc_rtsp_url: str = "rtsp://127.0.0.1:8554"
     recorder_buffer_dir: str = "/recbuf"
+    ai_model_path: str = "/models/yolox_tiny.onnx"  # YOLOX-tiny, Apache-2.0 (see README)
     timezone: str = "Europe/Belgrade"  # schedules and folder names on the share use local time
 
 

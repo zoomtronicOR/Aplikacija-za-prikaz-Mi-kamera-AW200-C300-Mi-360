@@ -16,6 +16,13 @@ ffmpeg decodes the stream at FPS frames per second, scaled to W x H grayscale. P
 Steps 1 (noise adaptation), 3 (zones, auto-ignore) and 4 (group) each have their own switch in
 MotionOptions. With a step off, it falls back to the plain behaviour: a fixed pixel threshold,
 no ignored blocks, or a plain count of active blocks.
+
+5. With AI verification on, a candidate only counts once the object detector (ai.py) finds a
+   person / vehicle / animal overlapping the moving blocks, on the very frame that moved. A
+   confirmation holds for AI_HOLD_S. If the AI isn't available, motion counts as before, so
+   nothing is silently lost.
+
+ffmpeg delivers RGB at AI_W x AI_H (3x the analysis size); the gray analysis frame is derived from it.
 """
 import logging
 import os
@@ -27,10 +34,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from app.recorder.ai import AiWorker, Request
+
 log = logging.getLogger(__name__)
 
 W, H, FPS = 160, 90, 4
-FRAME = W * H
+AI_W, AI_H = W * 3, H * 3
+FRAME = AI_W * AI_H * 3  # RGB bytes per frame from ffmpeg
+AI_HOLD_S = 10            # after a confirmation, motion counts without asking the AI again
+AI_ASK_EVERY_S = 1.0
 ROWS, COLS, BLOCK = 9, 16, 10
 CELLS = ROWS * COLS
 
@@ -53,6 +65,9 @@ class MotionOptions:
     auto_ignore: bool = True
     noise_adapt: bool = True
     require_group: bool = True
+    ai_enabled: bool = False
+    ai_groups: tuple[str, ...] = ("person",)
+    ai_min_score: float = 0.5
 
 
 def need_blocks(sensitivity: int) -> int:
@@ -98,8 +113,14 @@ def blur(f: np.ndarray) -> np.ndarray:
 
 
 class MotionDetector:
-    def __init__(self, slug: str, rtsp_url: str, options: MotionOptions):
+    def __init__(self, slug: str, rtsp_url: str, options: MotionOptions, ai: "AiWorker | None" = None):
         self.slug, self.rtsp_url = slug, rtsp_url
+        self.ai = ai
+        self.ai_label: str | None = None    # last confirmation, e.g. "osoba 87%"
+        self.ai_label_at: float | None = None
+        self.ai_warning: str | None = None  # AI wanted but unavailable (kept apart from the per-frame error)
+        self._ai_ok_until = 0.0
+        self._ai_asked = 0.0
         self.configure(options)
         # outputs, read by the record loop
         self.level = 0.0            # largest moving group / blocks needed (>= 1 means motion)
@@ -134,8 +155,8 @@ class MotionDetector:
     def _spawn(self) -> subprocess.Popen:
         cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
                "-rtsp_transport", "tcp", "-timeout", "10000000", "-i", self.rtsp_url, "-an",
-               "-vf", f"fps={FPS},scale={W}:{H}:flags=area,format=gray",
-               "-f", "rawvideo", "-pix_fmt", "gray", "pipe:1"]
+               "-vf", f"fps={FPS},scale={AI_W}:{AI_H}:flags=area",
+               "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
         return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ.copy())
 
     def _run(self) -> None:
@@ -167,7 +188,10 @@ class MotionDetector:
             buf = pipe.read(FRAME)
             if len(buf) < FRAME:
                 return
-            frame = blur(np.frombuffer(buf, dtype=np.uint8).reshape(H, W).astype(np.float32))
+            rgb = np.frombuffer(buf, dtype=np.uint8).reshape(AI_H, AI_W, 3)
+            # gray analysis frame: luma, then the mean of each 3x3 pixel block
+            luma = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+            frame = blur(luma.reshape(H, 3, W, 3).mean(axis=(1, 3)))
             self.error = None
             if bg is None or warmup > 0:
                 bg = frame if bg is None else bg + 0.5 * (frame - bg)
@@ -197,5 +221,35 @@ class MotionDetector:
 
             streak = streak + 1 if group >= need else 0
             if streak >= CONFIRM_FRAMES:
-                with self._lock:
-                    self._events.append(time.time())
+                self._candidate(rgb, counted, opts)
+
+    def _confirm(self, ts: float) -> None:
+        with self._lock:
+            self._events.append(ts)
+
+    def _candidate(self, rgb: np.ndarray, counted: np.ndarray, opts: MotionOptions) -> None:
+        now = time.time()
+        if not opts.ai_enabled or not opts.ai_groups:
+            self._confirm(now)
+            return
+        if self.ai is None or not self.ai.available or self.ai.error:
+            # never lose motion because the AI is missing or broken; the status shows why
+            self.ai_warning = (self.ai.error if self.ai and self.ai.error
+                               else "AI model nije pronađen, snima se svaki pokret")
+            self._confirm(now)
+            return
+        self.ai_warning = None
+        if now < self._ai_ok_until:
+            self._confirm(now)
+            return
+        if now - self._ai_asked < AI_ASK_EVERY_S:
+            return
+        self._ai_asked = now
+
+        def done(label: str | None, ts=now):
+            if label:
+                self._ai_ok_until = time.time() + AI_HOLD_S
+                self.ai_label, self.ai_label_at = label, ts
+                self._confirm(ts)
+
+        self.ai.submit(Request(self.slug, rgb.copy(), counted.copy(), opts.ai_groups, opts.ai_min_score, done))

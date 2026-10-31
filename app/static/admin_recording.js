@@ -161,8 +161,30 @@ function camRow(c) {
     zoneBtn.textContent = open ? 'Zone ▴' : 'Zone ▾';
     if (open) zones.show();
   };
+  // AI verification: a switch for the feature and one per object group
+  const aiOn = toggle('ai_enabled', 'AI potvrda: snimaj samo kad je u kadru…',
+    'Pokret se računa tek kad model prepozna izabrani objekat tamo gde se nešto pomerilo');
+  aiOn.input.checked = c.ai_enabled ?? false;
+  const aiGroups = [
+    toggle('ai_person', 'osoba'),
+    toggle('ai_vehicle', 'vozilo (auto, motor, bicikl…)'),
+    toggle('ai_animal', 'životinja (pas, mačka, ptica…)'),
+  ];
+  aiGroups[1].input.checked = c.ai_vehicle ?? false;
+  aiGroups[2].input.checked = c.ai_animal ?? false;
+  const aiScore = el('input', { type: 'range', class: 'form-range', min: 25, max: 95, step: 5,
+    value: Math.round((c.ai_min_score ?? 0.5) * 100), 'aria-label': 'Minimalna sigurnost' });
+  const aiScoreVal = el('span', { class: 'small text-body-secondary' });
+  const showScore = () => { aiScoreVal.textContent = `minimalna sigurnost ${aiScore.value}%`; };
+  aiScore.addEventListener('input', showScore);
+  showScore();
+  const aiSub = el('div', { class: 'ms-3' }, ...aiGroups.map(t => t.box), aiScoreVal, aiScore);
+  const showAi = () => aiSub.classList.toggle('opacity-25', !aiOn.input.checked);
+  aiOn.input.addEventListener('change', showAi);
+  showAi();
+
   const motionBox = el('div', { class: 'mt-1', style: 'min-width: 14rem' }, sensVal, sens,
-    ...motionToggles.map(t => t.box), zoneBtn);
+    ...motionToggles.map(t => t.box), el('div', { class: 'border-top mt-1 pt-1' }, aiOn.box, aiSub), zoneBtn);
   const modeCell = el('div', {}, mode, el('div', { class: 'mt-1' }, audio.box), motionBox);
 
   const showSched = () => {
@@ -187,6 +209,10 @@ function camRow(c) {
       zones.live(s);
       parts.push(el('div', { class: 'small text-body-secondary' },
         s.last_motion_at ? `poslednji pokret ${new Date(s.last_motion_at).toLocaleTimeString('sr-Latn-RS')}` : 'još nema pokreta'));
+      if (s.ai_enabled && s.ai_last) {
+        parts.push(el('div', { class: 'small text-body-secondary' },
+          `AI: ${s.ai_last} (${new Date(s.ai_last_at).toLocaleTimeString('sr-Latn-RS')})`));
+      }
     }
     if (s.error) parts.push(el('div', { class: 'small text-danger' }, s.error));
     stateCell.replaceChildren(...parts);
@@ -203,7 +229,8 @@ function camRow(c) {
       retention_days: ret.value ? Number(ret.value) : null,
       motion_sensitivity: Number(sens.value),
       motion_mask: zones.value(),
-      ...Object.fromEntries([audio, ...motionToggles].map(t => [t.key, t.input.checked])),
+      ...Object.fromEntries([audio, ...motionToggles, aiOn, ...aiGroups].map(t => [t.key, t.input.checked])),
+      ai_min_score: Number(aiScore.value) / 100,
     };
     try { await api(`/api/recording/cameras/${c.slug}`, { method: 'PUT', body: JSON.stringify(body) }); save.textContent = 'Sačuvano ✓'; setTimeout(() => { save.textContent = 'Sačuvaj'; }, 2000); }
     catch (e) { err.textContent = e.message; }

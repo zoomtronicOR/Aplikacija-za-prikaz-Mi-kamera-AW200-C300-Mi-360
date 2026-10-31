@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.models import Camera, RecordingSettings, RecordingStorage
+from app.recorder.ai import AiWorker
 from app.recorder.motion import MotionDetector, MotionOptions, mask_str
 from app.recorder.schedule import in_window
 from app.recorder.uploader import apply_retention, buffer_bytes, enforce_buffer_cap, upload_pending
@@ -44,19 +45,22 @@ def wanted_reason(rs: RecordingSettings, now_local: datetime) -> str | None:
     return None  # motion is not a standing reason: the worker keeps segments around detections
 
 
-def sync_detector(detectors: dict[str, MotionDetector], cam: Camera, rs: RecordingSettings, rtsp: str) -> list[float]:
+def sync_detector(detectors: dict[str, MotionDetector], cam: Camera, rs: RecordingSettings, rtsp: str,
+                  ai: AiWorker) -> list[float]:
     """Starts/stops the camera's detector to match its mode and returns new motion timestamps."""
     det = detectors.get(cam.slug)
     if rs.mode != "motion":
         if det:
             detectors.pop(cam.slug).stop()
         return []
+    groups = tuple(g for g, on in (("person", rs.ai_person), ("vehicle", rs.ai_vehicle), ("animal", rs.ai_animal)) if on)
     options = MotionOptions(sensitivity=rs.motion_sensitivity, mask=rs.motion_mask,
                             zones_enabled=rs.motion_zones_enabled, auto_ignore=rs.motion_auto_ignore,
-                            noise_adapt=rs.motion_noise_adapt, require_group=rs.motion_require_group)
+                            noise_adapt=rs.motion_noise_adapt, require_group=rs.motion_require_group,
+                            ai_enabled=rs.ai_enabled, ai_groups=groups, ai_min_score=rs.ai_min_score)
     if det is None:
         # the SD stream is cheaper to decode; ESP32 and generic cameras may only have the main one
-        det = detectors[cam.slug] = MotionDetector(cam.slug, f"{rtsp}/{cam.sd_stream or cam.slug}", options)
+        det = detectors[cam.slug] = MotionDetector(cam.slug, f"{rtsp}/{cam.sd_stream or cam.slug}", options, ai)
     elif det.options != options:
         det.configure(options)
     return det.drain()
@@ -64,6 +68,7 @@ def sync_detector(detectors: dict[str, MotionDetector], cam: Camera, rs: Recordi
 
 def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
     s = get_settings()
+    ai = AiWorker(s.ai_model_path)  # shared by all cameras; loads the model on first use
     workers: dict[str, CameraWorker] = {}
     detectors: dict[str, MotionDetector] = {}
     motion_on: dict[str, bool] = {}  # for motion_start / motion_end events
@@ -89,22 +94,25 @@ def record_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                     if w is None:
                         w = workers[cam.slug] = CameraWorker(cam.slug, f"{s.go2rtc_rtsp_url}/{cam.slug}", buffer_dir)
                     reason = wanted_reason(rs, now_local)
-                    motion = sync_detector(detectors, cam, rs, s.go2rtc_rtsp_url)
+                    motion = sync_detector(detectors, cam, rs, s.go2rtc_rtsp_url, ai)
                     w.tick(reason, now, armed=rs.mode == "motion", motion=motion,
                            pre_roll=rs.motion_pre_roll, audio=rs.record_audio)
                     active.add(cam.slug)
                     if motion:
                         rs.last_motion_at = datetime.fromtimestamp(motion[-1], timezone.utc)
+                    det = detectors.get(cam.slug)
                     moving = rs.mode == "motion" and w.motion_active(now)
                     if moving != motion_on.get(cam.slug, False):
-                        events.emit(db, "motion_start" if moving else "motion_end", cam.id)
+                        # the AI's label (e.g. "osoba 87%") rides along so notifications can say what moved
+                        label = det.ai_label if moving and det and det.ai_label_at and now - det.ai_label_at < 30 else None
+                        events.emit(db, "motion_start" if moving else "motion_end", cam.id, label)
                         motion_on[cam.slug] = moving
-
-                    det = detectors.get(cam.slug)
+                    if det and det.ai_label_at and (rs.ai_last_at is None or det.ai_label_at > rs.ai_last_at.timestamp()):
+                        rs.ai_last, rs.ai_last_at = det.ai_label, datetime.fromtimestamp(det.ai_label_at, timezone.utc)
                     # "recording" for the UI: a standing reason, or motion within its post-roll
                     if reason is None and w.motion_active(now):
                         reason = "motion"
-                    error = w.last_error or (det.error if det else None)
+                    error = w.last_error or (det.error or det.ai_warning if det else None)
                     status = (w.running and reason is not None, reason if w.running else None, error)
                     if status != last_status.get(cam.slug) or now - last_status_at > STATUS_EVERY_S:
                         rs.rec_active, rs.rec_reason, rs.last_error = status
