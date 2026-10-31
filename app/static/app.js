@@ -130,6 +130,30 @@ function addCamera(grid, cam) {
   card.querySelector('.btn-fs').onclick = () =>
     document.fullscreenElement ? document.exitFullscreen() : view.requestFullscreen();
 
+  // recording: red badge while the recorder writes this camera, REC button toggles manual recording
+  const badge = card.querySelector('.rec-badge');
+  const recBtn = card.querySelector('.btn-rec');
+  const REASONS = { manual: 'ručno', continuous: 'stalno', schedule: 'po rasporedu', motion: 'pokret' };
+  cam.renderRec = () => {
+    const r = cam.rec || {};
+    badge.classList.toggle('d-none', !r.active);
+    badge.title = r.active ? `Snima se (${REASONS[r.reason] || r.reason})` : '';
+    recBtn.textContent = r.manual ? '■ Stop' : 'REC';
+    recBtn.classList.toggle('btn-danger', !!r.manual);
+    recBtn.classList.toggle('btn-outline-danger', !r.manual);
+    recBtn.title = r.manual ? `Zaustavi ručno snimanje (pokrenuo: ${r.manual_by})` : 'Pokreni ručno snimanje';
+  };
+  if (!cam.can_control) recBtn.remove();
+  recBtn.onclick = async () => {
+    recBtn.disabled = true;
+    try {
+      cam.rec = await api(`/api/recording/cameras/${cam.slug}/manual`, { method: 'POST', body: JSON.stringify({ active: !cam.rec?.manual }) });
+      cam.renderRec();
+    } catch (e) { recBtn.title = e.message; }
+    finally { recBtn.disabled = false; }
+  };
+  cam.renderRec();
+
   const controls = card.querySelector('.controls');
   const btn = card.querySelector('.btn-controls');
   if (!cam.controls.length) btn.remove();
@@ -156,7 +180,15 @@ const cams = await api('/api/cameras');
 const byslug = {};
 for (const cam of cams) { cam.role_admin = 'did' in cam; byslug[cam.slug] = cam; addCamera(grid, cam); }
 
-// refresh reachability without re-creating players
+// refresh reachability and recording state without re-creating players
 setInterval(async () => {
-  try { for (const c of await api('/api/cameras')) if (byslug[c.slug]) byslug[c.slug].online = c.online; } catch {}
-}, 30000);
+  try {
+    for (const c of await api('/api/cameras')) {
+      const cam = byslug[c.slug];
+      if (!cam) continue;
+      cam.online = c.online;
+      cam.rec = c.rec;
+      cam.renderRec();
+    }
+  } catch {}
+}, 10000);

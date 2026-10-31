@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Snimci{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+
+<main class="container-lg p-3" data-role="{{ user.role }}">
+  <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div><label class="form-label small mb-0" for="f-cam">Kamera</label>
+      <select id="f-cam" class="form-select form-select-sm"><option value="">Sve kamere</option></select></div>
+    <div><label class="form-label small mb-0" for="f-day">Dan</label>
+      <input id="f-day" type="date" class="form-control form-control-sm"></div>
+    <span id="count" class="small text-body-secondary ms-auto"></span>
+  </div>
+
+  <div id="player-box" class="card mb-3 d-none">
+    <div class="card-header d-flex align-items-center py-2">
+      <strong id="player-title" class="flex-grow-1 small"></strong>
+      <button id="player-close" class="btn btn-sm btn-outline-secondary" aria-label="Zatvori">✕</button>
+    </div>
+    <video id="player" controls playsinline class="w-100 bg-black" style="max-height: 70vh"></video>
+    <div id="player-msg" class="small text-warning px-2 py-1 d-none">
+      Browser ne može da pusti ovaj snimak (H.265 ili MKV). Preuzmi ga i otvori u VLC-u.</div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Početak</th><th>Kamera</th><th>Trajanje</th><th>Razlog</th><th>Veličina</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <button id="more" class="btn btn-sm btn-outline-secondary d-none">Učitaj još</button>
+</main>
+<script type="module" src="/static/recordings.js"></script>
+{% endblock %}

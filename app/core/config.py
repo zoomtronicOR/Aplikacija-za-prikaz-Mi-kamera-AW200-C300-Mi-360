@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     session_ttl_hours: int = 168
     monitor_interval_s: int = 30
+    app_secret_key: str  # Fernet key for secrets stored in the DB
+    # recorder
+    go2rtc_rtsp_url: str = "rtsp://127.0.0.1:8554"
+    recorder_buffer_dir: str = "/recbuf"
+    timezone: str = "Europe/Belgrade"  # schedules and folder names on the share use local time
 
 
 @lru_cache

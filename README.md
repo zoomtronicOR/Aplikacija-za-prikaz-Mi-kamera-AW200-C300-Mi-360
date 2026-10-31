@@ -11,6 +11,7 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
   - ESP32-CAM: rezolucija, kvalitet, osvetljenost, kontrast, zasićenost, okretanje i ogledalo, automatski balans bele i ekspozicija.
 - **Okretanje (PTZ)** za C300 i Mi 360, strelicama preko slike (potrebna je go2rtc verzija sa PTZ izmenom, vidi niže).
 - **Dodavanje drugih kamera** iz interfejsa: RTSP, ONVIF, RTMP i HTTP/MJPEG, uz proveru veze pre čuvanja. ESP32-CAM se prepoznaje automatski i dobija kontrole.
+- **Snimanje** na Windows deljeni folder ili NAS (SMB). Može ručno (dugme REC), stalno (24/7) ili po rasporedu. Stari snimci se automatski brišu. Snimci se pregledaju, puštaju i preuzimaju u aplikaciji. Snimanje na pokret je u izradi.
 - **Korisnici i uloge:**
   - administrator: sve;
   - korisnik: prikaz i kontrole;
@@ -73,7 +74,10 @@ cd /opt/xiaomi-cam-hub
 mkdir -p config
 cp go2rtc.example.yaml config/go2rtc.yaml      # postavi lozinku u api: password, obriši primere streamova
 cp .env.example .env                           # postavi lozinke (GO2RTC_PASSWORD = lozinka iz go2rtc.yaml)
+# ključ za šifrovanje lozinke deljenog foldera; upiši ga u .env kao APP_SECRET_KEY
+python3 -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
 chmod 600 .env config/go2rtc.yaml
+mkdir -p data/recbuf && chown 10001:10001 data/recbuf && chmod 700 data/recbuf   # lokalni bafer snimača
 ```
 
 ### 3. go2rtc sa podrškom za okretanje (PTZ)
@@ -170,6 +174,26 @@ Kao administrator otvori **Kamere** (dugme u gornjem meniju) i popuni formu. Dug
 
 Dozvoljene su samo mrežne adrese (`rtsp`, `rtsps`, `rtmp`, `http`, `https`, `onvif`). go2rtc izvori koji izvršavaju komande na serveru (`exec:` i slični) su blokirani.
 
+## Snimanje
+
+Snimanjem upravlja poseban servis (`recorder`), koji radi i kada niko nije prijavljen:
+1. Video se samo kopira iz go2rtc-a, bez pretvaranja, pa ne opterećuje procesor.
+2. Snima se u delove od 10 sekundi, koji se spajaju u klipove do 5 minuta.
+3. Klipovi se šalju na deljeni folder: `<kamera>/<datum>/<vreme>_<razlog>.mp4`.
+4. Ako je računar sa folderom nedostupan, klipovi čekaju lokalno, do granice podešene u aplikaciji.
+
+**Priprema Windows foldera:**
+1. Napravi lokalnog korisnika samo za snimke (npr. `kamere`) sa lozinkom.
+2. Na folderu: desni klik → Properties → Sharing → Advanced Sharing → *Share this folder*. U Permissions daj tom korisniku *Full Control*.
+3. Računar mora imati stalnu IP adresu i biti uključen dok se snima.
+
+**U aplikaciji** (administrator → **Snimanje**):
+1. Unesi IP računara, ime deljenja, korisnika i lozinku, pa klikni **Proveri vezu**. Aplikacija upiše i obriše probni fajl. Lozinka se u bazi čuva šifrovana.
+2. Za svaku kameru izaberi način (isključeno, stalno, po rasporedu), raspored (npr. 22:00–06:00, po danima) i broj dana čuvanja.
+3. Ručno snimanje pokreće se dugmetom **REC** na kartici kamere, nezavisno od izabranog načina.
+
+Za orijentaciju, stalno snimanje Xiaomi kamere u HD-u zauzima oko 0,6 GB po satu (~14 GB dnevno).
+
 ## Rad i održavanje
 
 ```bash
@@ -192,6 +216,8 @@ Migracije baze (Alembic) pokreću se same pri startu aplikacije.
 - Okretanje radi samo dok je kamera otvorena na ekranu, jer komanda ide kroz aktivnu video vezu.
 - go2rtc odgovara „uspešno” i kada kamera nema motor, pa odgovor ne dokazuje pokret.
 - Govor ka kameri (dvosmerni zvuk) zahteva HTTPS i još nije uključen.
+- Ako kameru niko ne gleda, snimak počinje 3–8 sekundi posle pokretanja, dok se ne uspostavi veza sa kamerom.
+- Snimci sa Xiaomi kamera su u formatu H.265. Chrome i Edge ih puštaju na većini računara, ali ne na svim. U suprotnom preuzmi snimak i otvori ga u VLC-u.
 - Istovremeno gledanje iste Xiaomi kamere kroz Mi Home aplikaciju može izazvati prekide.
 - ESP32 `CameraWebServer` primenjuje novu rezoluciju tek na novoj stream vezi. Aplikacija zato ponovo poveže plejer, a drugi gledaoci vide promenu kad osveže stranicu.
 - Desilo se da AW200 prestane da odgovara na video vezu. Restart kamere (isključivanje iz struje) je to rešio.

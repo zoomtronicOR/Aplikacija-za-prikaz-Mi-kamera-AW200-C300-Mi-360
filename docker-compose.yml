@@ -44,5 +44,26 @@ services:
     volumes:
       - ./config/miio_tokens.json:/config/miio_tokens.json:ro
 
+  recorder:
+    # same image as the app; records independently of logged-in users
+    image: xiaomi-cam-app:local
+    pull_policy: never
+    container_name: xiaomi-cam-recorder
+    restart: unless-stopped
+    command: ["python", "-m", "app.recorder"]
+    # host network: go2rtc RTSP on localhost, SMB to the share on the LAN
+    network_mode: host
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_started  # runs the migrations
+    # time to close the current segment and join the last clip
+    stop_grace_period: 40s
+    volumes:
+      # local buffer: 10 s segments and clips waiting for upload (owned by uid 10001)
+      - ./data/recbuf:/recbuf
+
 volumes:
   postgres_data:

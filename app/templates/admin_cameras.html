@@ -1,13 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Kamere – podešavanja{% endblock %}
 {% block body %}
-<nav class="navbar border-bottom px-3">
-  <a href="/" class="navbar-brand mb-0 h1 fs-5">← Kamere</a>
-  <form method="post" action="/logout" class="d-flex align-items-center gap-2">
-    <span class="text-body-secondary small">{{ user.username }}</span>
-    <button class="btn btn-sm btn-outline-secondary">Odjava</button>
-  </form>
-</nav>
+{% include "_nav.html" %}
 
 <main class="container-lg p-3">
   <h1 class="h5">Kamere</h1>

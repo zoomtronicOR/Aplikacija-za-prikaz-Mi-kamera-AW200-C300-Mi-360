@@ -33,6 +33,22 @@ def admin_cameras(request: Request, user: User | None = Depends(optional_user)):
     return templates.TemplateResponse(request, "admin_cameras.html", {"user": user})
 
 
+@router.get("/admin/recording", response_class=HTMLResponse)
+def admin_recording(request: Request, user: User | None = Depends(optional_user)):
+    if user is None:
+        return RedirectResponse("/login", 303)
+    if user.role != "admin":
+        return RedirectResponse("/", 303)
+    return templates.TemplateResponse(request, "admin_recording.html", {"user": user})
+
+
+@router.get("/recordings", response_class=HTMLResponse)
+def recordings_page(request: Request, user: User | None = Depends(optional_user)):
+    if user is None:
+        return RedirectResponse("/login", 303)
+    return templates.TemplateResponse(request, "recordings.html", {"user": user})
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
     return templates.TemplateResponse(request, "login.html", {"error": None})

@@ -1,0 +1,16 @@
+<nav class="navbar border-bottom px-3 gap-2">
+  <div class="d-flex align-items-center gap-1 flex-wrap">
+    <span class="navbar-brand mb-0 h1 fs-5 me-2">Kamere</span>
+    {% set p = request.url.path %}
+    <a href="/" class="btn btn-sm {{ 'btn-secondary' if p == '/' else 'btn-outline-secondary' }}">Uživo</a>
+    <a href="/recordings" class="btn btn-sm {{ 'btn-secondary' if p == '/recordings' else 'btn-outline-secondary' }}">Snimci</a>
+    {% if user.role == "admin" %}
+    <a href="/admin/cameras" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/cameras' else 'btn-outline-secondary' }}">Kamere</a>
+    <a href="/admin/recording" class="btn btn-sm {{ 'btn-secondary' if p == '/admin/recording' else 'btn-outline-secondary' }}">Snimanje</a>
+    {% endif %}
+  </div>
+  <form method="post" action="/logout" class="d-flex align-items-center gap-2">
+    <span class="text-body-secondary small">{{ user.username }}</span>
+    <button class="btn btn-sm btn-outline-secondary">Odjava</button>
+  </form>
+</nav>

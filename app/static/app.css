@@ -9,6 +9,9 @@ body { background: #111; }
 .dot.wait { background: #e90; }
 .dot.err { background: #e33; }
 .controls .form-check { margin-bottom: .25rem; }
+.rec-badge { animation: rec-blink 1.5s steps(2, start) infinite; }
+@keyframes rec-blink { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .rec-badge { animation: none; } }
 .ptz { position: absolute; right: 8px; bottom: 8px; display: grid; grid-template: repeat(3, 36px) / repeat(3, 36px);
        gap: 2px; opacity: .55; transition: opacity .2s; z-index: 2; }
 .ptz:hover, .ptz:focus-within { opacity: 1; }

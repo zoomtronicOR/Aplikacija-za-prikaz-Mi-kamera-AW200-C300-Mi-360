@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, time
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, Time, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -55,6 +55,62 @@ class Camera(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
+
+
+REC_MODES = ("off", "continuous", "schedule", "motion")
+
+
+class RecordingStorage(Base):
+    """Where finished clips go. A single row (id=1); the recorder writes the status fields."""
+    __tablename__ = "recording_storage"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(8), default="smb")
+    host: Mapped[str | None] = mapped_column(String(255))
+    share: Mapped[str | None] = mapped_column(String(255))
+    folder: Mapped[str | None] = mapped_column(String(255))  # path inside the share
+    username: Mapped[str | None] = mapped_column(String(128))
+    password_enc: Mapped[str | None] = mapped_column(Text)  # Fernet, key in .env
+    default_retention_days: Mapped[int] = mapped_column(Integer, default=14)
+    buffer_max_gb: Mapped[float] = mapped_column(Float, default=5.0)  # local queue cap while the share is down
+    # written by the recorder
+    status_ok: Mapped[bool | None] = mapped_column(Boolean)
+    status_error: Mapped[str | None] = mapped_column(Text)
+    status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    pending_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class RecordingSettings(Base):
+    __tablename__ = "recording_settings"
+
+    camera_id: Mapped[int] = mapped_column(ForeignKey("cameras.id", ondelete="CASCADE"), primary_key=True)
+    mode: Mapped[str] = mapped_column(String(16), default="off")
+    schedule_start: Mapped[time | None] = mapped_column(Time)
+    schedule_end: Mapped[time | None] = mapped_column(Time)  # may be before start: window crosses midnight
+    schedule_days: Mapped[str] = mapped_column(String(7), default="0123456")  # Monday=0
+    retention_days: Mapped[int | None] = mapped_column(Integer)  # None: storage default
+    manual_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    manual_by: Mapped[str | None] = mapped_column(String(64))
+    motion_sensitivity: Mapped[int] = mapped_column(Integer, default=50)
+    # written by the recorder
+    rec_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    rec_reason: Mapped[str | None] = mapped_column(String(16))
+    status_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class Recording(Base):
+    __tablename__ = "recordings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    camera_id: Mapped[int | None] = mapped_column(ForeignKey("cameras.id", ondelete="SET NULL"), index=True)
+    camera_slug: Mapped[str] = mapped_column(String(64))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    path: Mapped[str] = mapped_column(String(512))  # relative to the storage folder
+    reason: Mapped[str] = mapped_column(String(16))  # manual | continuous | schedule | motion
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AuditLog(Base):

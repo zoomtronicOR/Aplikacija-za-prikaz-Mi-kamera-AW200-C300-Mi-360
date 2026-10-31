@@ -7,10 +7,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.recordings import rec_json
 from app.api.stream import go2rtc_stream
 from app.core.db import get_db
 from app.core.security import audit, client_ip, current_user, require_role
-from app.models import Camera, User
+from app.models import Camera, RecordingSettings, User
 from app.services import go2rtc, monitor
 from app.services.controls import MODELS, ControlError, capabilities, detect_esp32
 
@@ -78,7 +79,7 @@ def list_cameras(all: bool = False, db: Session = Depends(get_db), user: User = 
     q = select(Camera).order_by(Camera.sort_order, Camera.name)
     if not (all and user.role == "admin"):
         q = q.where(Camera.enabled.is_(True))
-    return [camera_json(c, user) for c in db.execute(q).scalars()]
+    return [{**camera_json(c, user), "rec": rec_json(db.get(RecordingSettings, c.id))} for c in db.execute(q).scalars()]
 
 
 @router.post("", status_code=201)

@@ -1,14 +1,7 @@
 {% extends "base.html" %}
 {% block head %}<script type="module" src="/player/video-stream.js"></script>{% endblock %}
 {% block body %}
-<nav class="navbar border-bottom px-3">
-  <span class="navbar-brand mb-0 h1 fs-5">Kamere</span>
-  <form method="post" action="/logout" class="d-flex align-items-center gap-2">
-    {% if user.role == "admin" %}<a href="/admin/cameras" class="btn btn-sm btn-outline-secondary">Kamere</a>{% endif %}
-    <span class="text-body-secondary small">{{ user.username }}</span>
-    <button class="btn btn-sm btn-outline-secondary">Odjava</button>
-  </form>
-</nav>
+{% include "_nav.html" %}
 <main id="grid" class="cam-grid p-3"></main>
 
 <template id="cam-card">
@@ -16,6 +9,8 @@
     <div class="card-header d-flex align-items-center gap-2 py-2">
       <span class="dot" title=""></span>
       <div class="flex-grow-1 text-truncate"><strong class="name"></strong> <span class="loc text-body-secondary small"></span></div>
+      <span class="rec-badge badge text-bg-danger d-none" title="">● REC</span>
+      <button class="btn btn-sm btn-outline-danger btn-rec" title="Ručno snimanje">REC</button>
       <button class="btn btn-sm btn-outline-secondary btn-quality" title="Kvalitet slike">HD</button>
       <button class="btn btn-sm btn-outline-secondary btn-controls" title="Kontrole">⚙</button>
       <button class="btn btn-sm btn-outline-secondary btn-fs" title="Ceo ekran">⛶</button>
