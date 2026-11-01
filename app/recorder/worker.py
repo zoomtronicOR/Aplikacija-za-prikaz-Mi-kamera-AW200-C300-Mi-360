@@ -145,8 +145,12 @@ class CameraWorker:
         if self.proc and self.proc.poll() is not None:
             err = (self.proc.stderr.read() or b"").decode(errors="replace").strip()[-300:] if self.proc.stderr else ""
             self._failures += 1
-            self.last_error = f"ffmpeg je prekinuo snimanje: {err or 'kod ' + str(self.proc.returncode)}"
-            log.warning("%s: %s", self.slug, self.last_error)
+            msg = f"ffmpeg je prekinuo snimanje: {err or 'kod ' + str(self.proc.returncode)}"
+            log.warning("%s: %s", self.slug, msg)
+            # a single failure is normal on a cold start (the camera connects slower than ffmpeg probes);
+            # show it only when it repeats
+            if self._failures >= 3:
+                self.last_error = msg
             self.proc = None
             self._restart_at = now + min(60, 5 * self._failures)
 
@@ -230,7 +234,10 @@ class CameraWorker:
         elif not wanted and self.running:
             self._stop()
         if wanted and self.running:
-            self._failures = 0 if now - self._restart_at > 120 else self._failures
+            if now - self._restart_at > 120:  # stable for 2 min: earlier failures are history
+                self._failures = 0
+                if self.last_error and self.last_error.startswith("ffmpeg je prekinuo"):
+                    self.last_error = None
         self.process_segments(now)
 
     def shutdown(self) -> None:
