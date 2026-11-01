@@ -333,8 +333,5 @@ bash /opt/xiaomi-cam-hub/scripts/prepare_new_site.sh
 
 Skripta prvo prikaže šta će obrisati i traži potvrdu (`DA`). Briše kamere, snimke iz spiska, događaje, sesije, skladište, MQTT, Tailscale identitet i streamove u go2rtc. Zadržava korisnike, Xiaomi prijavu, AI model i pravila obaveštenja. Na kraju ispiše sledeće korake. Nikad je ne pokreći na originalu.
 
-## Reset kamere preko pametne utičnice (Home Assistant)
-
-Uz MQTT kanal, svaka kamera u HA ima senzor „Dostupnost“ (binary_sensor, connectivity). Automatizacija u HA može da reaguje kad on pređe u `off` (kamera ne odgovara oko 2 min): sačeka još ~1 min, ugasi utičnicu kamere, posle 10 s je upali. Okidaj samo na `off`, ne na `unavailable` (to znači da su pali aplikacija ili MQTT), i ograniči na jedan reset u 30 min.
 
 Snimci obrisani ručno na deljenom folderu nestaju iz spiska snimaka i iz događaja u roku od 10 minuta.
