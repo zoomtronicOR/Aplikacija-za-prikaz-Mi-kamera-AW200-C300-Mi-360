@@ -15,6 +15,8 @@
     const fp = flatpickr(input, { ...opts[kind], locale: 'sr', disableMobile: true, allowInput: false });
     fp.altInput.className = input.className;
     if (input.style.cssText) fp.altInput.style.cssText = input.style.cssText;
+    // a text field fills its flex row, unlike the native time input; keep it as narrow as that one
+    if (kind === 'time' && !input.style.width) fp.altInput.style.width = '4.5rem';
     const label = input.getAttribute('aria-label');
     if (label) fp.altInput.setAttribute('aria-label', label);
     // page code sets .value directly; keep the visible field in step

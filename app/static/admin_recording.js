@@ -178,12 +178,16 @@ function camRow(c) {
   const showScore = () => { aiScoreVal.textContent = `minimalna sigurnost ${aiScore.value}%`; };
   aiScore.addEventListener('input', showScore);
   showScore();
-  const aiSub = el('div', { class: 'ms-3' }, ...aiGroups.map(t => t.box), aiScoreVal, aiScore);
+  const aiScoreHelp = el('div', { class: 'small text-body-secondary' },
+    'Koliko AI mora biti siguran da je to osoba/vozilo/životinja da bi snimio. Više = manje lažnih snimaka, ali može propustiti pravi.');
+  const aiSub = el('div', { class: 'ms-3' }, ...aiGroups.map(t => t.box), aiScoreVal, aiScore, aiScoreHelp);
   const showAi = () => aiSub.classList.toggle('opacity-25', !aiOn.input.checked);
   aiOn.input.addEventListener('change', showAi);
   showAi();
 
-  const motionBox = el('div', { class: 'mt-1', style: 'min-width: 14rem' }, sensVal, sens,
+  const sensHelp = el('div', { class: 'small text-body-secondary' },
+    'Koliki pokret pokreće snimanje. Više = hvata i sitne i daleke pokrete, ali i lišće i senke.');
+  const motionBox = el('div', { class: 'mt-1', style: 'min-width: 14rem' }, sensVal, sens, sensHelp,
     ...motionToggles.map(t => t.box), el('div', { class: 'border-top mt-1 pt-1' }, aiOn.box, aiSub), zoneBtn);
   const modeCell = el('div', {}, mode, el('div', { class: 'mt-1' }, audio.box), motionBox);
 
