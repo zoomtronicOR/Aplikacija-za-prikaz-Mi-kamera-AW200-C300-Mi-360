@@ -26,6 +26,8 @@ Privatna web aplikacija za prikaz uživo i upravljanje Xiaomi kamerama (AW200, C
 - **Stranica Sistem:** procesor, RAM, disk servera i disk sa snimcima, stanje svih servisa i kamera, uz **alarm za disk** (upozorenje na 80 % i 90 %, pragovi podesivi, sa prekidačem).
 - **Samopopravka (watchdog):** svakog minuta proverava da li kamere daju sliku. Ako kamera odgovara na mreži, a slika ne stiže dva puta zaredom, sledi obaveštenje i automatska popravka: restart kamere (AW200) ili uspavljivanje i buđenje (ostale), najviše jednom na sat. Detekcija, popravka i obaveštenja imaju svoje prekidače na stranici Sistem.
 - **Noćna rezervna kopija** baze i konfiguracije.
+- **Uputstva u aplikaciji:** dugme *Uputstva* otvara detaljan opis svih delova aplikacije; delovi za administratora vide se samo administratoru.
+- **Srpski format** datuma i vremena (dd.mm.gggg., 24 h), nezavisno od jezika pregledača.
 
 ## Podržane kamere
 
