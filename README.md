@@ -332,6 +332,3 @@ bash /opt/xiaomi-cam-hub/scripts/prepare_new_site.sh
 ```
 
 Skripta prvo prikaže šta će obrisati i traži potvrdu (`DA`). Briše kamere, snimke iz spiska, događaje, sesije, skladište, MQTT, Tailscale identitet i streamove u go2rtc. Zadržava korisnike, Xiaomi prijavu, AI model i pravila obaveštenja. Na kraju ispiše sledeće korake. Nikad je ne pokreći na originalu.
-
-
-Snimci obrisani ručno na deljenom folderu nestaju iz spiska snimaka i iz događaja u roku od 10 minuta.
