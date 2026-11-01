@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Uputstva{% endblock %}
+{% block head %}
+<style>
+  .help details { border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: .5rem .9rem; margin-bottom: .6rem; background: var(--bs-body-bg); }
+  .help summary { cursor: pointer; font-weight: 600; }
+  .help details[open] summary { margin-bottom: .5rem; }
+  .help h3 { font-size: .95rem; margin-top: .9rem; }
+  .help li { margin-bottom: .2rem; }
+  .help kbd { font-size: .8em; }
+</style>
+{% endblock %}
+{% block body %}
+{% include "_nav.html" %}
+{% set admin = user.role == "admin" %}
+<main class="container-lg p-3 help" style="max-width: 900px">
+  <h1 class="h5">Uputstva</h1>
+  <p class="small text-body-secondary">Klikni na naslov da otvoriš odeljak.
+    {% if not admin %}Prikazani su delovi koji važe za tvoju ulogu ({{ user.role }}).{% endif %}</p>
+
+  <details open>
+    <summary>Prvi koraci i prijava</summary>
+    <ul>
+      <li>Aplikacija se otvara u pregledaču na adresi servera (https://…). Radi na računaru, telefonu i tabletu.</li>
+      <li><b>Prijava:</b> korisničko ime i lozinka koje ti je dao administrator. Posle 5 pogrešnih pokušaja u 15 minuta prijava se privremeno blokira.</li>
+      <li>Ako aplikacija traži promenu lozinke pri prvoj prijavi, postavi novu (najmanje 12 znakova) na stranici <b>Moj nalog</b>.</li>
+      <li><b>Uloge:</b> <i>viewer</i> samo gleda kamere, događaje i snimke; <i>user</i> još i upravlja kamerama (kontrole, okretanje, snimanje); <i>admin</i> podešava sve.</li>
+      <li><b>Sertifikat:</b> ako pregledač upozori da veza nije bezbedna, instaliraj osnovni sertifikat servera: otvori <code>http://&lt;adresa servera&gt;/ca.crt</code> i na uređaju ga označi kao pouzdan (Android: Podešavanja → Bezbednost → Instaliraj sertifikat → CA; iPhone: instaliraj profil, pa Opšte → Informacije → Poverenje u sertifikate). Bez toga mikrofon (razgovor kroz kameru) ne radi.</li>
+      <li><b>Odjava:</b> dugme <b>Odjava</b> gore desno. Klik na svoje korisničko ime otvara <b>Moj nalog</b>.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Uživo – gledanje kamera</summary>
+    <ul>
+      <li>Početna stranica prikazuje sve kamere u mreži. Slika se učitava sama; ako kamera nije dostupna, piše <b>Nedostupna</b>.</li>
+      <li><b>HD / SD:</b> HD je puna rezolucija, SD manja i štedi mrežu (korisno na mobilnom internetu). Izbor se pamti u pregledaču.</li>
+      <li>Klik na <b>ime kamere</b> otvara stranicu te kamere sa velikim prikazom.</li>
+      <li>Ako slika zastane, osveži stranicu. Ako kameru istovremeno gledaš u Mi Home aplikaciji, prikaz ovde može da kasni ili prekida.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Stranica kamere – kontrole, okretanje, slika, razgovor</summary>
+    <ul>
+      <li><b>Okretanje</b> (kamere sa motorom): strelice na ekranu ili strelice na tastaturi. Drži taster za neprekidno okretanje.</li>
+      <li><kbd>F</kbd> ili dugme za ceo ekran prebacuje prikaz preko celog ekrana.</li>
+      <li><b>Kontrole</b> (zavise od modela): uključenje/spavanje kamere, noćni režim, okretanje slike, vodeni žig, indikator, rezolucija (ESP32-CAM)… Promena važi odmah. Posle promene rezolucije slika nestane na 2–3 sekunde i vrati se u novoj.</li>
+      <li><b>REC</b> pokreće i zaustavlja ručno snimanje te kamere (snimak ide u <b>Snimci</b>).</li>
+      <li><b>📷 Slika</b> preuzima trenutnu sliku kao JPEG.</li>
+      <li><b>🎤 Razgovor:</b> govoriš kroz zvučnik kamere. Radi samo preko HTTPS-a sa pouzdanim sertifikatom (vidi Prvi koraci); pregledač će tražiti dozvolu za mikrofon.</li>
+      <li><b>Poslednji snimci</b> ispod prikaza: 5 najnovijih snimaka te kamere, puštaju se direktno.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Događaji – arhiva pokreta i prekida</summary>
+    <ul>
+      <li>Spisak svega što se desilo: pokret (sa sličicom i AI oznakom, npr. „osoba 87%“), kamera nedostupna/ponovo dostupna, gubitak videa, greška skladišta, upozorenje za disk.</li>
+      <li><b>Filteri:</b> dan (kalendar u formatu dd.mm.gggg.), kamera i vrsta događaja.</li>
+      <li><b>Vremenska traka dana</b> prikazuje po kameri kada je bilo pokreta (i prekida). Klik na oznaku na traci otvara taj događaj.</li>
+      <li>Ako za događaj postoji snimak, dugme za puštanje otvara snimak tačno od tog trenutka. Ako je snimak obrisan (rok čuvanja ili ručno sa deljenog foldera), dugme nestaje, a događaj sa sličicom ostaje.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Snimci – pregled, puštanje, preuzimanje</summary>
+    <ul>
+      <li>Izaberi <b>dan</b> i <b>kameru</b>. Snimci su isečci do 5 minuta; razlog snimanja piše uz svaki (pokret, neprekidno, raspored, ručno).</li>
+      <li>Klik pušta snimak u pregledaču; možeš premotavati. Dugme za preuzimanje čuva fajl (MP4, kod ESP32-CAM MKV).</li>
+      <li><b>Učitaj još</b> prikazuje starije snimke tog dana.</li>
+      <li>Administrator može obrisati snimak; tada se briše i sa deljenog foldera.</li>
+      <li>Snimci se čuvaju na deljenom folderu (Windows/NAS) onoliko dana koliko je podešeno, pa se sami brišu.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Moj nalog</summary>
+    <ul>
+      <li>Promena lozinke: trenutna lozinka, pa nova dva puta (najmanje 12 znakova).</li>
+      <li>Zaboravljenu lozinku resetuje administrator na stranici <b>Korisnici</b>.</li>
+    </ul>
+  </details>
+
+  {% if admin %}
+  <h2 class="h6 mt-4 mb-2 text-body-secondary">Za administratora</h2>
+
+  <details>
+    <summary>Kamere – dodavanje i brisanje</summary>
+    <h3>Xiaomi kamere</h3>
+    <ol>
+      <li><b>Prijava na Xiaomi nalog:</b> isti nalog kao u Mi Home aplikaciji, izaberi region (za Evropu obično <i>de</i>). Ako stigne kod na e-mail/SMS, upiši ga u sledećem koraku.</li>
+      <li><b>Učitaj kamere sa naloga</b> prikazuje kamere sa naloga. Kod željene klikni <b>Dodaj kameru</b>.</li>
+      <li>Aplikacija sama nađe najbolju HD i SD sliku, preuzme ključ za kontrole i prepozna koje kontrole kamera podržava. Traje do minut.</li>
+      <li>Kamera mora biti u istoj mreži kao server. Kamere na drugoj lokaciji ne mogu se dodati odavde (vidi Sistem → kopiranje na novu lokaciju).</li>
+    </ol>
+    <h3>Druge kamere (RTSP, ONVIF, HTTP, ESP32-CAM)</h3>
+    <ol>
+      <li><b>Dodaj drugu kameru:</b> upiši naziv, adresu streama (primeri su ispod polja) i po želji adresu SD streama i lokaciju.</li>
+      <li><b>Format:</b> „direktno“ za kamere koje šalju H.264/H.265; „h264“ ako se slika ne prikazuje (aplikacija pretvara sliku, troši procesor); „mjpeg“ za ESP32-CAM.</li>
+      <li><b>Proveri vezu</b> pre čuvanja: aplikacija pokuša da dobije sliku. Lozinka iz adrese se ne prikazuje nigde u aplikaciji.</li>
+    </ol>
+    <p class="small mb-1">Brisanje kamere uklanja i njen stream. Snimci na deljenom folderu ostaju dok ih ne obriše rok čuvanja.</p>
+  </details>
+
+  <details>
+    <summary>Snimanje – skladište, načini, pokret, AI</summary>
+    <h3>1. Gde se čuvaju snimci</h3>
+    <ul>
+      <li>Upiši adresu računara/NAS-a, ime deljenog foldera, podfolder, korisničko ime i lozinku, pa <b>Proveri vezu</b> i <b>Sačuvaj</b>.</li>
+      <li><b>Windows:</b> desni klik na folder → Properties → Sharing → Advanced Sharing → Share this folder (Permissions: korisniku dozvoli Change). Kao korisničko ime upiši <b>e-mail Microsoft naloga</b> kojim se prijavljuješ na Windows, ne „Guest“.</li>
+      <li>Podesi <b>rok čuvanja</b> (dana) i najveći lokalni bafer. Stanje skladišta (slobodno mesto, greške) vidi se iznad forme i na stranici Sistem.</li>
+    </ul>
+    <h3>2. Način snimanja po kameri</h3>
+    <ul>
+      <li><b>Isključeno</b> – ne snima (ručno REC i dalje radi).</li>
+      <li><b>Neprekidno</b> – snima stalno, 24 h.</li>
+      <li><b>Po rasporedu</b> – snima stalno u zadatom vremenu i danima. Od 22:00 do 06:00 prelazi ponoć; isto vreme početka i kraja (00:00–00:00) znači ceo dan.</li>
+      <li><b>Na pokret</b> – snima samo kad se nešto pomeri, sa 10 s pre i 20 s posle pokreta.</li>
+      <li><b>Čuvanje (dana)</b> – rok za tu kameru; prazno = podrazumevani rok skladišta.</li>
+      <li><b>Zvuk</b> – da li snimak ima zvuk.</li>
+      <li>Promene važe tek posle klika na <b>Sačuvaj</b> u redu te kamere (treba da piše „Sačuvano ✓“).</li>
+    </ul>
+    <h3>3. Podešavanje pokreta</h3>
+    <ul>
+      <li><b>Osetljivost:</b> koliki pokret pokreće snimanje. Veća = hvata i sitne i daleke pokrete, ali i lišće, kišu i senke. Kreni od 50 i menjaj u malim koracima.</li>
+      <li><b>Zone (maska):</b> otvori editor zona, označi delove slike koje treba ignorisati (drveće, ulica, nebo), uključi prekidač <b>Zone</b> i klikni <b>Sačuvaj</b> u redu kamere. U editoru se uživo vidi nivo pokreta i koja polja su aktivna.</li>
+      <li><b>Automatsko ignorisanje</b> nemirnih delova (lišće na vetru), <b>prilagođavanje šumu</b> (noćna slika), <b>zahtev za grupom</b> (pokret mora zahvatiti više susednih polja) i <b>pre-roll</b> (10 s pre pokreta) – sve je uključeno po podrazumevanju; svaka opcija ima svoj prekidač.</li>
+      <li>Posle promene detektor 2–3 minuta uči pozadinu i tada može napraviti koji lažni snimak.</li>
+    </ul>
+    <h3>4. AI provera (osoba, vozilo, životinja)</h3>
+    <ul>
+      <li>Kad je uključena, pokret se snima samo ako AI na slici prepozna izabranu vrstu.</li>
+      <li><b>Minimalna sigurnost:</b> koliko AI mora biti siguran. Više = manje lažnih snimaka, ali može propustiti pravi (npr. osobu u mraku). Noću granje ume da dobije „osoba“ 40–65 %, pa je za spoljne kamere dobar prag 60–70 %.</li>
+      <li>Oznaka koju je AI dao vidi se u Događajima i u obaveštenju.</li>
+    </ul>
+    <p class="small mb-1"><b>Saveti protiv lažnih snimaka:</b> prvo maska zona, zatim AI provera sa višim pragom, pa tek onda manja osetljivost. Ako drveće zauzima veći deo kadra, okreni kameru.</p>
+  </details>
+
+  <details>
+    <summary>Obaveštenja – Telegram, ntfy, e-mail, MQTT / Home Assistant</summary>
+    <h3>Kanali</h3>
+    <ul>
+      <li><b>Telegram:</b> napravi bota preko @BotFather (dobićeš token), pošalji botu poruku, pa upiši token i chat ID. <b>ntfy:</b> adresa servera i tema. <b>E-mail:</b> SMTP server, port, korisnik, lozinka i primalac.</li>
+      <li>Svaki kanal ima dugme za probnu poruku. Lozinke i tokeni čuvaju se šifrovano.</li>
+      <li><b>MQTT:</b> adresa brokera (npr. Mosquitto u Home Assistant-u), korisnik, lozinka i prefiks tema. Home Assistant sam pronalazi kamere: pokret, dostupnost, slika, kontrole, način snimanja, ručno snimanje i okretanje – svaku grupu možeš isključiti.</li>
+    </ul>
+    <h3>Kada stiže obaveštenje</h3>
+    <ul>
+      <li>Biraš vrste događaja (pokret, kamera nedostupna, gubitak videa, skladište, disk) i za koje kamere stiže obaveštenje o pokretu.</li>
+      <li><b>Pauza između obaveštenja o pokretu</b> sprečava zatrpavanje porukama.</li>
+      <li><b>Tihi sati:</b> u tom vremenu ne stižu obaveštenja o pokretu (ostala stižu).</li>
+      <li>MQTT uvek dobija sve događaje, bez obzira na ova pravila.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Korisnici i dnevnik</summary>
+    <ul>
+      <li><b>Dodaj korisnika:</b> korisničko ime, uloga, početna lozinka (min. 12 znakova). Preporuka: uključi „Traži da korisnik postavi svoju lozinku pri prvoj prijavi“.</li>
+      <li>Korisnika možeš deaktivirati, promeniti mu ulogu ili resetovati lozinku; tada se odmah odjavljuje sa svih uređaja.</li>
+      <li>Sebe ne možeš obrisati ni oduzeti sebi admin ulogu; uvek mora postojati bar jedan aktivan admin.</li>
+      <li><b>Dnevnik (audit log):</b> ko se kada prijavio i šta je menjao (kontrole, podešavanja, brisanja, komande iz Home Assistant-a).</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Sistem – stanje servera, disk, samopopravka</summary>
+    <ul>
+      <li>Procesor, RAM, opterećenje, vreme rada, zauzeće diska servera i deljenog foldera, stanje servisa i kamera.</li>
+      <li><b>Alarm za disk:</b> upozorenje kad zauzeće pređe zadati procenat (server ili deljeni folder).</li>
+      <li><b>Samopopravka (watchdog):</b> ako kamera ima mrežu, a ne šalje video, aplikacija je sama restartuje (najviše jednom na sat po kameri) i javi to u Događajima. Može se isključiti.</li>
+      <li><b>Kopiranje sistema na novu lokaciju:</b> uputstvo je na toj stranici.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>Pristup od kuće i spolja</summary>
+    <ul>
+      <li>Kod kuće: https://adresa-servera (npr. https://192.168.1.10).</li>
+      <li>Spolja: samo preko VPN-a (Tailscale). Na telefonu uključi Tailscale i otvori adresu servera na tailnet-u (…ts.net); ta adresa ima pravi sertifikat, pa ne treba instalirati ništa.</li>
+      <li>Aplikaciju nikad ne otvaraj prema internetu preko rutera (port forwarding).</li>
+    </ul>
+  </details>
+  {% endif %}
+
+  <details>
+    <summary>Česti problemi</summary>
+    <ul>
+      <li><b>Kamera „Nedostupna“:</b> proveri napajanje i Wi-Fi kamere. Ako se ne vrati za par minuta, isključi i uključi je iz struje.</li>
+      <li><b>Slika crna ili zamrznuta:</b> osveži stranicu; probaj SD. Zatvori Mi Home aplikaciju ako u njoj gledaš istu kameru.</li>
+      <li><b>Mnogo lažnih snimaka:</b> vidi Snimanje → saveti protiv lažnih snimaka.</li>
+      <li><b>Ne snima ništa:</b> način snimanja ne sme biti „Isključeno“; proveri stanje skladišta (zeleno) i da li je AI prag previsok.</li>
+      <li><b>Greška skladišta:</b> računar sa deljenim folderom mora biti uključen i u mreži; proveri lozinku (posle promene lozinke Microsoft naloga upiši novu).</li>
+      <li><b>Mikrofon ne radi:</b> stranica mora biti otvorena preko https, sa pouzdanim sertifikatom, i pregledač mora imati dozvolu za mikrofon.</li>
+    </ul>
+  </details>
+</main>
+{% endblock %}

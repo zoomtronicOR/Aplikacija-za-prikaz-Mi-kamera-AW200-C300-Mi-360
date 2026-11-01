@@ -14,6 +14,7 @@
     {% endif %}
   </div>
   <form method="post" action="/logout" class="d-flex align-items-center gap-2">
+    <a href="/help" class="btn btn-sm {{ 'btn-secondary' if p == '/help' else 'btn-outline-secondary' }}">Uputstva</a>
     <a href="/account" class="small {{ 'link-light' if p == '/account' else 'link-secondary' }}" title="Moj nalog">{{ user.username }}</a>
     <button class="btn btn-sm btn-outline-secondary">Odjava</button>
   </form>

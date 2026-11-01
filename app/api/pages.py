@@ -50,6 +50,7 @@ for path, template, is_admin in (
     ("/events", "events.html", False),
     ("/recordings", "recordings.html", False),
     ("/account", "account.html", False),
+    ("/help", "help.html", False),
     ("/admin/cameras", "admin_cameras.html", True),
     ("/admin/recording", "admin_recording.html", True),
     ("/admin/notify", "admin_notify.html", True),
