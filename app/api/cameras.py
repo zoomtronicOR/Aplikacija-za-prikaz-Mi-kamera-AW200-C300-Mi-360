@@ -1,6 +1,8 @@
+import logging
 import re
 import unicodedata
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo
 
@@ -18,6 +20,7 @@ from app.models import Camera, RecordingSettings, User
 from app.services import go2rtc, monitor
 from app.services.controls import ControlError, capabilities, detect_esp32, model_for
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/cameras")
 
 CONTROL_ROLES = ("admin", "user")
@@ -201,7 +204,21 @@ async def set_state(slug: str, body: SetControl, request: Request, db: Session =
         audit(db, "camera_set_failed", user=user, target=cam.slug, detail=f"{body.key}={value}: {e}", ip=client_ip(request))
         raise HTTPException(502, str(e))
     audit(db, "camera_set", user=user, target=cam.slug, detail=f"{body.key}={value}", ip=client_ip(request))
+    if control.restarts_stream:
+        _request_reconnect(cam.slug)
     return {"key": body.key, "value": value}
+
+
+STREAMCTL_DIR = Path("/host/streamctl")
+
+
+def _request_reconnect(slug: str) -> None:
+    """Asks scripts/streamctl.py (in the LXC) to reopen the camera's source in go2rtc: recorder and
+    motion keep the old connection open, and the ESP32 sends a new resolution only on a new one."""
+    try:
+        (STREAMCTL_DIR / f"{slug}.restart").touch()
+    except OSError as e:
+        log.warning("stream reconnect request for %s failed: %s", slug, e)
 
 
 @router.post("/{slug}/ptz/{direction}")

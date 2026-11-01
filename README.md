@@ -171,6 +171,13 @@ install -m 644 scripts/xiaomi-cam-hub-stats.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now xiaomi-cam-hub-stats.service
 ```
 
+Drugi mali servis ponovo otvara vezu ka kameri u go2rtc kad se promeni rezolucija (potrebno za ESP32-CAM):
+
+```bash
+install -m 644 scripts/xiaomi-cam-hub-streamctl.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now xiaomi-cam-hub-streamctl.service
+```
+
 ### 6. Noćna rezervna kopija
 
 ```bash

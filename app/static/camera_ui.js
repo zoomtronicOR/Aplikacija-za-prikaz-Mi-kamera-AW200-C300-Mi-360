@@ -15,7 +15,8 @@ export function renderControls(box, cam, replay) {
     try {
       await api(`/api/cameras/${cam.slug}/state`, { method: 'POST', body: JSON.stringify({ key, value }) });
       // reconnect so the stream picks up the change; other viewers see it when they reconnect
-      if (restartKeys.has(key)) setTimeout(replay, 500);
+      // the server reopens the camera source first (~1 s), then the player reconnects
+      if (restartKeys.has(key)) setTimeout(replay, 2500);
     }
     catch (e) { status.textContent = e.message; await load(); }
     finally { input.disabled = !cam.can_control; }

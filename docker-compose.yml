@@ -48,6 +48,8 @@ services:
       # describes this container) and a bind mount on the root disk for its free space
       - ./data/hoststats:/host/stats:ro
       - ./data/fsprobe:/host/fs:ro
+      # requests for scripts/streamctl.py (runs in the LXC): reconnect a camera source in go2rtc
+      - ./data/streamctl:/host/streamctl
 
   caddy:
     # HTTPS in front of the app (local CA); config/Caddyfile is server-specific, see Caddyfile.example
