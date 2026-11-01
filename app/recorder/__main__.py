@@ -21,7 +21,7 @@ from app.models import Camera, Event, NotifySettings, RecordingSettings, Recordi
 from app.recorder.ai import AiWorker
 from app.recorder.motion import MotionDetector, MotionOptions, mask_str
 from app.recorder.schedule import in_window
-from app.recorder.uploader import apply_retention, buffer_bytes, enforce_buffer_cap, upload_pending
+from app.recorder.uploader import apply_retention, prune_missing, buffer_bytes, enforce_buffer_cap, upload_pending
 from app.recorder.worker import CameraWorker, recover_leftovers
 from app.services import events, smb
 
@@ -207,6 +207,7 @@ def upload_loop(buffer_dir: Path, tz: ZoneInfo) -> None:
                         upload_pending(db, share, clip_dir, tz)
                         if time.time() - last_retention > RETENTION_EVERY_S:
                             apply_retention(db, share)
+                            prune_missing(db, share)
                             last_retention = time.time()
                         ok = True
                     except smb.StorageError as e:

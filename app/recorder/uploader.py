@@ -86,3 +86,21 @@ def apply_retention(db: Session, share: smb.Share) -> int:
     if removed:
         log.info("retention removed %d recording(s)", removed)
     return removed
+
+
+def prune_missing(db: Session, share: smb.Share) -> int:
+    """Drops index rows whose file was deleted by hand on the share, so recordings and events no longer
+    offer them. Only folders that list successfully count; any other error leaves the index alone."""
+    rows = db.execute(select(Recording.id, Recording.path)).all()
+    if not rows:
+        return 0
+    present = smb.existing(share, {r.path.rsplit("/", 1)[0] for r in rows if "/" in r.path})
+    if present is None:
+        return 0
+    gone = [r.id for r in rows if r.path not in present]
+    for rid in gone:
+        db.delete(db.get(Recording, rid))
+    db.commit()
+    if gone:
+        log.info("index: %d recording(s) no longer on the share, removed", len(gone))
+    return len(gone)

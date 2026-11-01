@@ -116,12 +116,34 @@ def delete(share: Share, rel: str) -> None:
     share._session()
     try:
         smbclient.remove(share.unc(rel))
-    except FileNotFoundError:
-        pass
     except (SMBException, OSError) as e:
-        if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e) or "STATUS_OBJECT_PATH_NOT_FOUND" in str(e):
-            return
+        if _missing(e):
+            return  # already gone (e.g. deleted by hand on the share)
         raise StorageError(_explain(e)) from e
+
+
+# STATUS_OBJECT_NAME_NOT_FOUND, STATUS_OBJECT_PATH_NOT_FOUND
+_MISSING = ("0xc0000034", "0xc000003a", "OBJECT_NAME_NOT_FOUND", "OBJECT_PATH_NOT_FOUND")
+
+
+def _missing(e: Exception) -> bool:
+    """smbclient raises SMBOSError (errno 2) whose text carries the NTSTATUS hex, not FileNotFoundError."""
+    return isinstance(e, FileNotFoundError) or getattr(e, "errno", None) == 2 or any(m in str(e) for m in _MISSING)
+
+
+def existing(share: Share, dirs: set[str]) -> set[str] | None:
+    """Relative paths of the files present in the given share directories; None when a listing fails
+    for another reason than a missing directory (then nothing may be treated as missing)."""
+    share._session()
+    found: set[str] = set()
+    for d in dirs:
+        try:
+            for entry in smbclient.scandir(share.unc(d)):
+                found.add(posixpath.join(d, entry.name))
+        except (SMBException, OSError) as e:
+            if not _missing(e):
+                return None
+    return found
 
 
 def open_read(share: Share, rel: str):
