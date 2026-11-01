@@ -198,7 +198,7 @@ function camRow(c) {
   mode.addEventListener('change', showSched);
   showSched();
 
-  const stateCell = el('td', {});
+  const stateCell = el('td', { class: 'small', style: 'max-width: 16rem; overflow-wrap: anywhere' });
   statusCells[c.slug] = s => {
     let state;
     if (!s.recorder_alive) state = el('span', { class: 'badge text-bg-warning' }, 'snimač ne radi');
