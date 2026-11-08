@@ -2,7 +2,7 @@
 import base64
 import re
 import struct
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import httpx
 
@@ -28,6 +28,18 @@ def validate_source(url: str) -> str:
     if not parts.hostname:
         raise SourceError("Adresa nema naziv ili IP adresu uređaja")
     return url
+
+
+def with_credentials(url: str, username: str | None, password: str | None) -> str:
+    """Puts the login into the URL (user:pass@host), percent-encoded so any character is allowed.
+    A login already written in the URL wins."""
+    if not username:
+        return url
+    parts = urlsplit(url)
+    if parts.username or not parts.hostname:
+        return url
+    auth = quote(username, safe="") + (":" + quote(password, safe="") if password else "")
+    return urlunsplit((parts.scheme, f"{auth}@{parts.netloc}", parts.path, parts.query, parts.fragment))
 
 
 def mask_source(url: str) -> str:

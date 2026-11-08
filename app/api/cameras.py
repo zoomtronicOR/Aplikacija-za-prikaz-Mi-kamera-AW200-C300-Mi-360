@@ -40,6 +40,14 @@ class NewCamera(BaseModel):
     sd_source: str | None = Field(default=None, max_length=1024)
     mode: Literal["direct", "h264", "mjpeg"] = "direct"
     skip_probe: bool = False
+    username: str | None = Field(default=None, max_length=128)
+    password: str | None = Field(default=None, max_length=256)
+
+    def urls(self) -> tuple[str, str | None]:
+        """Validated main and SD URLs with the login from the form fields put in."""
+        src = go2rtc.with_credentials(go2rtc.validate_source(self.source), self.username, self.password)
+        sd = go2rtc.validate_source(self.sd_source) if self.sd_source else None
+        return src, go2rtc.with_credentials(sd, self.username, self.password) if sd else None
 
 
 class UpdateCamera(BaseModel):
@@ -93,8 +101,7 @@ def list_cameras(all: bool = False, db: Session = Depends(get_db), user: User = 
 async def add_camera(body: NewCamera, request: Request, db: Session = Depends(get_db),
                      user: User = Depends(require_role("admin"))):
     try:
-        source = go2rtc.validate_source(body.source)
-        sd_source = go2rtc.validate_source(body.sd_source) if body.sd_source else None
+        source, sd_source = body.urls()
     except go2rtc.SourceError as e:
         raise HTTPException(400, str(e))
 
@@ -127,7 +134,7 @@ async def add_camera(body: NewCamera, request: Request, db: Session = Depends(ge
 async def probe_source(body: NewCamera, user: User = Depends(require_role("admin"))):
     """Lets the admin test a URL before saving."""
     try:
-        source = go2rtc.validate_source(body.source)
+        source, _ = body.urls()
         return {"resolution": await go2rtc.probe(go2rtc.probe_source(source, body.mode))}
     except go2rtc.SourceError as e:
         raise HTTPException(422, str(e))

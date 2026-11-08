@@ -83,6 +83,7 @@ function formBody() {
   return {
     name: f.get('name'), location: f.get('location') || null, source: f.get('source'),
     sd_source: f.get('sd_source') || null, mode: f.get('mode'),
+    username: f.get('username') || null, password: f.get('password') || null,
   };
 }
 

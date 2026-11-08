@@ -7,4 +7,4 @@ cd "$(dirname "$0")/.."
 
 tar czf - --exclude=__pycache__ Dockerfile requirements.txt alembic.ini docker-compose.yml Caddyfile.example app migrations scripts \
   | ssh "$HOST" "tar xzf - --no-same-owner -C $DIR"
-ssh "$HOST" "cd $DIR && docker compose up -d --build --remove-orphans && docker compose ps"
+ssh "$HOST" "cd $DIR && docker build --network host -q -t xiaomi-cam-app:local . >/dev/null && docker compose up -d --remove-orphans && docker compose ps"
